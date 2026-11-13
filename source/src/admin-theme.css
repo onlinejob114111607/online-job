@@ -500,3 +500,15 @@ body:has(.login-card) {
 .settings-shell .settings-page {
   max-width: none;
 }
+
+/* حالة النشر على فيسبوك وإنستغرام */
+.meta-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.danger-text {
+  color: var(--danger);
+  width: 100%;
+}

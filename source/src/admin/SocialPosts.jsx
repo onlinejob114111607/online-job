@@ -43,6 +43,8 @@ export default function SocialPosts({ pub }) {
   const cur = days.find((d) => d.id === day);
   const [busy, setBusy] = useState("");
   const [form, setForm] = useState(null);
+  const priv = useDocData("store/settings");
+  const [token, setToken] = useState("");
   useEffect(() => {
     if (raw !== undefined && !form) setForm(mergeSocial(raw || {}));
   }, [raw, form]);
@@ -61,9 +63,27 @@ export default function SocialPosts({ pub }) {
   const run = raw?.run;
   const working = run?.state === "working" && Date.now() - (run.at || 0) < 15 * 60_000;
   async function saveCfg() {
-    await setDoc(doc(db, "store", "social"), { ...form, updatedAt: Date.now() }, { merge: true })
-      .then(() => toast("انحفظ ✓", "ok"))
-      .catch((e) => toast(e.message, "bad"));
+    try {
+      await setDoc(doc(db, "store", "social"), { ...mergeSocial(form), updatedAt: Date.now() }, { merge: true });
+      // التوكن سري ← بنحفظه مع إعدادات المتجر الخاصة (مش مع إعدادات المنشورات)
+      if (token.trim()) {
+        await setDoc(doc(db, "store", "settings"), { metaToken: token.trim() }, { merge: true });
+        setToken("");
+      }
+      toast("انحفظ ✓", "ok");
+    } catch (e) {
+      toast(e.message, "bad");
+    }
+  }
+  async function metaTest() {
+    setBusy("meta_test");
+    try {
+      const r = await runCommand("wa", "social_meta_test", {}, { timeout: 60_000 });
+      toast(r?.igUsername ? `✓ متصل: صفحة «${r.pageName}» + إنستغرام @${r.igUsername}` : `✓ متصل بصفحة «${r?.pageName}» — بس ما في حساب إنستغرام مربوط فيها`, r?.igUsername ? "ok" : "bad", 8000);
+    } catch (e) {
+      toast(e.message, "bad", 9000);
+    }
+    setBusy("");
   }
   async function setItem(i, patch) {
     const items = cur.items.map((x, j) => (j === i ? { ...x, ...patch } : x));
@@ -158,6 +178,14 @@ export default function SocialPosts({ pub }) {
                         🔗 الرابط
                       </button>
                     </div>
+                    {(cfg.metaOn || it.meta) && <MetaStatus it={it} cfg={cfg} i={i} day={day} />}
+                    {!!cfg.metaPageId && (
+                      <div className="btn-row">
+                        <button className="btn small" disabled={!!busy || !workers.waOnline} onClick={() => confirm(`ننشر «${it.name}» هلأ على فيسبوك وإنستغرام؟`) && cmd("social_meta_publish", { index: i }, "بلّش النشر — بياخد دقيقة، والحالة بتتحدّث هون")}>
+                          {busy === "social_meta_publish" + i ? "جاري..." : "📤 انشر هلأ على فيسبوك وإنستا"}
+                        </button>
+                      </div>
+                    )}
                     <details className="social-text">
                       <summary>شوف النص</summary>
                       <pre>{it.fb}</pre>
@@ -248,6 +276,83 @@ export default function SocialPosts({ pub }) {
               <Toggle checked={form.waMention} onChange={(v) => setForm({ ...form, waMention: v })} label="منشن الكل بمنشورات المتجر" />
             </>
           )}
+          <h4 className="sub-title">📢 النشر المباشر على فيسبوك وإنستغرام (Meta)</h4>
+          <Toggle checked={form.metaOn} onChange={(v) => setForm({ ...form, metaOn: v })} label="انشر منشورات اليوم لحالها" hint="كل منتج بينزل بوقته: منشور + قصة على صفحة الفيسبوك، ومنشور + قصة على إنستغرام. لازم العامل يكون شغّال على الجوال بهالأوقات." />
+          <div className="chips">
+            {[
+              ["metaFbPost", "منشور فيسبوك"],
+              ["metaFbStory", "قصة فيسبوك"],
+              ["metaIgPost", "منشور إنستغرام"],
+              ["metaIgStory", "قصة إنستغرام"],
+            ].map(([k, l]) => (
+              <button key={k} type="button" className={"chip" + (form[k] ? " active" : "")} onClick={() => setForm({ ...form, [k]: !form[k] })}>
+                {form[k] ? "✓ " : ""}
+                {l}
+              </button>
+            ))}
+          </div>
+          <div className="form-grid">
+            {[0, 1, 2].map((i) => (
+              <Field key={i} label={`وقت نشر المنتج ${i + 1}`}>
+                <input
+                  type="time"
+                  value={form.metaTimes[i] || ""}
+                  onChange={(e) => {
+                    const t = [...form.metaTimes];
+                    t[i] = e.target.value;
+                    setForm({ ...form, metaTimes: t.filter(Boolean) });
+                  }}
+                />
+              </Field>
+            ))}
+            <Field label="رقم صفحة الفيسبوك (Page ID)" hint="من صفحتك ← حول ← شفافية الصفحة، أو من Meta Business Suite ← الإعدادات.">
+              <input dir="ltr" inputMode="numeric" value={form.metaPageId} onChange={(e) => setForm({ ...form, metaPageId: e.target.value.replace(/\D/g, "") })} placeholder="1234567890" />
+            </Field>
+            <Field label="توكن الصفحة (Page access token)" hint={priv?.metaToken ? "✓ في توكن محفوظ — اكتب جديد بس لو بدك تغيّره." : "لسا ما في توكن."}>
+              <input dir="ltr" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={priv?.metaToken ? "••••••••  (محفوظ)" : "EAAG..."} />
+            </Field>
+          </div>
+          {raw?.metaCheck?.pageName && (
+            <p className="small-text">
+              آخر فحص: صفحة <b>{raw.metaCheck.pageName}</b>
+              {raw.metaCheck.igUsername ? (
+                <>
+                  {" "}+ إنستغرام <b dir="ltr">@{raw.metaCheck.igUsername}</b> ✓
+                </>
+              ) : (
+                " — ⚠️ ما في حساب إنستغرام مربوط بالصفحة"
+              )}
+            </p>
+          )}
+          <div className="btn-row">
+            <button className="btn small" disabled={!!busy || !workers.waOnline || !raw?.metaPageId} onClick={metaTest} title={!raw?.metaPageId ? "احفظ رقم الصفحة والتوكن أول" : ""}>
+              {busy === "meta_test" ? "جاري الفحص..." : "🔌 جرّب الاتصال"}
+            </button>
+          </div>
+          <details className="social-text">
+            <summary>كيف بجيب التوكن؟ (مرة وحدة)</summary>
+            <ol className="small-text">
+              <li>لازم يكون حساب الإنستغرام <b>بزنس أو كريتور</b> ومربوط بصفحة الفيسبوك.</li>
+              <li>
+                افتح <b dir="ltr">business.facebook.com/settings</b> ← المستخدمين ← <b>مستخدمي النظام</b> ← أضف مستخدم (Admin).
+              </li>
+              <li>«إضافة أصول» ← اختار الصفحة وحساب الإنستغرام ← تحكم كامل.</li>
+              <li>
+                من <b dir="ltr">developers.facebook.com</b> اعمل تطبيق (نوع Business)، وحطه بوضع <b>Live</b> (بيطلب رابط سياسة خصوصية — ممكن تحط رابط المتجر).
+              </li>
+              <li>
+                ارجع لمستخدم النظام ← «إنشاء توكن» ← اختار التطبيق، ومدة <b>بدون انتهاء</b>، وفعّل الصلاحيات:
+                <div dir="ltr" className="small-text">pages_show_list · pages_read_engagement · pages_manage_posts · instagram_basic · instagram_content_publish · business_management</div>
+              </li>
+              <li>
+                التوكن اللي بيطلع هو توكن مستخدم. لتحوّله لتوكن صفحة افتح بالمتصفح:
+                <div dir="ltr" className="small-text">graph.facebook.com/me/accounts?access_token=التوكن</div>
+                وانسخ <b dir="ltr">access_token</b> اللي جنب اسم صفحتك، وحطه هون مع رقم الصفحة (<b dir="ltr">id</b>).
+              </li>
+              <li>احفظ واكبس «جرّب الاتصال».</li>
+            </ol>
+            <p className="small-text muted">إنستغرام بيقبل صور JPG بس، والقصص بتنزل بصورة المنتج الأولى.</p>
+          </details>
           <button className="btn small primary" onClick={saveCfg}>
             حفظ
           </button>
@@ -255,5 +360,27 @@ export default function SocialPosts({ pub }) {
         </Panel>
       )}
     </>
+  );
+}
+
+// حالة النشر على Meta لمنتج واحد
+const META_LABELS = [
+  ["fbPost", "metaFbPost", "منشور فيسبوك"],
+  ["fbStory", "metaFbStory", "قصة فيسبوك"],
+  ["igPost", "metaIgPost", "منشور إنستغرام"],
+  ["igStory", "metaIgStory", "قصة إنستغرام"],
+];
+function MetaStatus({ it, cfg, i }) {
+  const at = cfg.metaTimes[i % (cfg.metaTimes.length || 1)];
+  return (
+    <div className="meta-status">
+      {META_LABELS.filter(([k, flag]) => cfg[flag] || it.meta?.[k]).map(([k, , label]) => {
+        const m = it.meta?.[k];
+        if (m?.id) return <Tag key={k} kind="ok">✓ {label}</Tag>;
+        if (m?.error) return <Tag key={k} kind="bad" title={m.error}>⚠️ {label}</Tag>;
+        return <Tag key={k} kind="wait">⏳ {label}{at ? ` ${at}` : ""}</Tag>;
+      })}
+      {Object.values(it.meta || {}).some((m) => m?.error) && <div className="small-text danger-text">{Object.values(it.meta).find((m) => m?.error)?.error}</div>}
+    </div>
   );
 }
