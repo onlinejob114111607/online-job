@@ -45,6 +45,7 @@ export default function SocialPosts({ pub }) {
   const [form, setForm] = useState(null);
   const priv = useDocData("store/settings");
   const [token, setToken] = useState("");
+  const [hook, setHook] = useState("");
   useEffect(() => {
     if (raw !== undefined && !form) setForm(mergeSocial(raw || {}));
   }, [raw, form]);
@@ -70,10 +71,25 @@ export default function SocialPosts({ pub }) {
         await setDoc(doc(db, "store", "settings"), { metaToken: token.trim() }, { merge: true });
         setToken("");
       }
+      if (hook.trim()) {
+        if (!/^https:\/\/[^\s]+$/.test(hook.trim())) throw new Error("رابط الـ Webhook لازم يبدأ بـ https://");
+        await setDoc(doc(db, "store", "settings"), { makeHookUrl: hook.trim() }, { merge: true });
+        setHook("");
+      }
       toast("انحفظ ✓", "ok");
     } catch (e) {
       toast(e.message, "bad");
     }
+  }
+  async function hookTest() {
+    setBusy("hook_test");
+    try {
+      const r = await runCommand("wa", "social_hook_test", { day }, { timeout: 60_000 });
+      toast(`✓ وصل لـ Make (${r?.reply || "ok"}) — افتح Make وشوف إنه استلم البيانات`, "ok", 8000);
+    } catch (e) {
+      toast(e.message, "bad", 9000);
+    }
+    setBusy("");
   }
   async function metaTest() {
     setBusy("meta_test");
@@ -276,8 +292,21 @@ export default function SocialPosts({ pub }) {
               <Toggle checked={form.waMention} onChange={(v) => setForm({ ...form, waMention: v })} label="منشن الكل بمنشورات المتجر" />
             </>
           )}
-          <h4 className="sub-title">📢 النشر المباشر على فيسبوك وإنستغرام (Meta)</h4>
-          <Toggle checked={form.metaOn} onChange={(v) => setForm({ ...form, metaOn: v })} label="انشر منشورات اليوم لحالها" hint="كل منتج بينزل بوقته: منشور + قصة على صفحة الفيسبوك، ومنشور + قصة على إنستغرام. لازم العامل يكون شغّال على الجوال بهالأوقات." />
+          <h4 className="sub-title">📢 النشر التلقائي على فيسبوك وإنستغرام</h4>
+          <Toggle checked={form.metaOn} onChange={(v) => setForm({ ...form, metaOn: v })} label="انشر منشورات اليوم لحالها" hint="كل منتج بينزل بوقته. لازم العامل يكون شغّال على الجوال بهالأوقات." />
+          <Field label="طريقة الربط">
+            <div className="chips">
+              {[
+                ["make", "عن طريق Make.com (بدون تطبيق)"],
+                ["graph", "مباشر مع Meta (بدها تطبيق وتوكن)"],
+              ].map(([k, l]) => (
+                <button key={k} type="button" className={"chip" + (form.metaVia === k ? " active" : "")} onClick={() => setForm({ ...form, metaVia: k })}>
+                  {l}
+                </button>
+              ))}
+            </div>
+          </Field>
+          {form.metaVia !== "make" && (
           <div className="chips">
             {[
               ["metaFbPost", "منشور فيسبوك"],
@@ -291,6 +320,7 @@ export default function SocialPosts({ pub }) {
               </button>
             ))}
           </div>
+          )}
           <div className="form-grid">
             {[0, 1, 2].map((i) => (
               <Field key={i} label={`وقت نشر المنتج ${i + 1}`}>
@@ -305,13 +335,33 @@ export default function SocialPosts({ pub }) {
                 />
               </Field>
             ))}
+            {form.metaVia === "make" ? (
+              <Field label="رابط الـ Webhook من Make" hint={priv?.makeHookUrl ? "✓ في رابط محفوظ — الصق جديد بس لو بدك تغيّره." : "لسا ما في رابط."}>
+                <input dir="ltr" type="password" autoComplete="off" value={hook} onChange={(e) => setHook(e.target.value)} placeholder={priv?.makeHookUrl ? "••••••••  (محفوظ)" : "https://hook.eu1.make.com/..."} />
+              </Field>
+            ) : (
+            <>
             <Field label="رقم صفحة الفيسبوك (Page ID)" hint="من صفحتك ← حول ← شفافية الصفحة، أو من Meta Business Suite ← الإعدادات.">
               <input dir="ltr" inputMode="numeric" value={form.metaPageId} onChange={(e) => setForm({ ...form, metaPageId: e.target.value.replace(/\D/g, "") })} placeholder="1234567890" />
             </Field>
             <Field label="توكن الصفحة (Page access token)" hint={priv?.metaToken ? "✓ في توكن محفوظ — اكتب جديد بس لو بدك تغيّره." : "لسا ما في توكن."}>
               <input dir="ltr" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={priv?.metaToken ? "••••••••  (محفوظ)" : "EAAG..."} />
             </Field>
+            </>
+            )}
           </div>
+          {form.metaVia === "make" && (
+            <>
+              <div className="btn-row">
+                <button className="btn small" disabled={!!busy || !workers.waOnline || !priv?.makeHookUrl} onClick={hookTest} title={!priv?.makeHookUrl ? "احفظ الرابط أول" : ""}>
+                  {busy === "hook_test" ? "جاري الإرسال..." : "🔌 ابعت تجربة لـ Make"}
+                </button>
+              </div>
+              <MakeGuide />
+            </>
+          )}
+          {form.metaVia !== "make" && (
+          <>
           {raw?.metaCheck?.pageName && (
             <p className="small-text">
               آخر فحص: صفحة <b>{raw.metaCheck.pageName}</b>
@@ -353,6 +403,8 @@ export default function SocialPosts({ pub }) {
             </ol>
             <p className="small-text muted">إنستغرام بيقبل صور JPG بس، والقصص بتنزل بصورة المنتج الأولى.</p>
           </details>
+          </>
+          )}
           <button className="btn small primary" onClick={saveCfg}>
             حفظ
           </button>
@@ -365,6 +417,7 @@ export default function SocialPosts({ pub }) {
 
 // حالة النشر على Meta لمنتج واحد
 const META_LABELS = [
+  ["hook", null, "Make.com"],
   ["fbPost", "metaFbPost", "منشور فيسبوك"],
   ["fbStory", "metaFbStory", "قصة فيسبوك"],
   ["igPost", "metaIgPost", "منشور إنستغرام"],
@@ -374,7 +427,7 @@ function MetaStatus({ it, cfg, i }) {
   const at = cfg.metaTimes[i % (cfg.metaTimes.length || 1)];
   return (
     <div className="meta-status">
-      {META_LABELS.filter(([k, flag]) => cfg[flag] || it.meta?.[k]).map(([k, , label]) => {
+      {META_LABELS.filter(([k, flag]) => (cfg.metaVia === "make" ? k === "hook" : flag && cfg[flag]) || it.meta?.[k]).map(([k, , label]) => {
         const m = it.meta?.[k];
         if (m?.id) return <Tag key={k} kind="ok">✓ {label}</Tag>;
         if (m?.error) return <Tag key={k} kind="bad" title={m.error}>⚠️ {label}</Tag>;
@@ -382,5 +435,47 @@ function MetaStatus({ it, cfg, i }) {
       })}
       {Object.values(it.meta || {}).some((m) => m?.error) && <div className="small-text danger-text">{Object.values(it.meta).find((m) => m?.error)?.error}</div>}
     </div>
+  );
+}
+
+// خطوات إعداد Make.com (مرة وحدة)
+function MakeGuide() {
+  return (
+    <details className="social-text" open>
+      <summary>كيف بعمل الربط على Make.com؟ (مرة وحدة، حوالي 10 دقايق)</summary>
+      <ol className="small-text">
+        <li>
+          اعمل حساب مجاني على <b dir="ltr">make.com</b> ← <b>Create a new scenario</b>.
+        </li>
+        <li>
+          أول مربع: ابحث عن <b>Webhooks</b> ← <b>Custom webhook</b> ← <b>Add</b> ← سمّيه «Joudi» ← <b>Copy address</b>. الصق الرابط هون فوق واحفظ.
+        </li>
+        <li>
+          اكبس هون <b>«ابعت تجربة لـ Make»</b> — Make بيعرف شكل البيانات (لازم يكون المربع بوضع «Run once» أو مستني).
+        </li>
+        <li>
+          ضيف بعده <b>Router</b> (موزّع) بفرعين:
+          <ul>
+            <li>
+              <b>فرع فيسبوك:</b> <b>Facebook Pages</b> ← <b>Create a Post with Photos</b> ← سجّل دخول بفيسبوك واختار صفحة جودي ستور ← Photos: <code>photos[]</code> ← Message: <code>fb_text</code>.
+            </li>
+            <li>
+              <b>فرع إنستغرام:</b> <b>Instagram for Business</b> ← <b>Create a Carousel Post</b> ← سجّل دخول واختار حساب المتجر ← الصور من <code>ig_photos[]</code> ← Caption: <code>ig_text</code>.
+              <br />
+              (لو المنتج إله صورة وحدة: حط فلتر <code>ig_photo_count = 1</code> وفرع <b>Create a Photo Post</b> بـ <code>ig_photo</code>.)
+            </li>
+          </ul>
+        </li>
+        <li>
+          على كل فرع حط فلتر <code>test</code> = <code>false</code> عشان التجربة ما تنشر فعلياً.
+        </li>
+        <li>
+          شغّل الـ scenario (<b>ON</b>) واختار <b>Immediately</b>. وهون اختار «عن طريق Make.com» وشغّل «انشر منشورات اليوم لحالها» واحفظ.
+        </li>
+      </ol>
+      <p className="small-text muted">
+        البيانات اللي بتوصل لـ Make: <code>name</code>، <code>fb_text</code>، <code>ig_text</code>، <code>link</code>، <code>photos</code>، <code>ig_photos</code> (JPG بس)، <code>photo_count</code>، <code>ig_photo_count</code>، <code>story_photo</code>. القصص لسا مش مدعومة عن طريق Make.
+      </p>
+    </details>
   );
 }
