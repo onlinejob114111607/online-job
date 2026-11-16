@@ -107,6 +107,18 @@ export function FunnelSettings({ cfg }) {
             ))}
           </select>
         </Field>
+        <Field label="رقم احتياطي" hint="لو رقم المتابعة انقطع، البوت بيكمّل من هالرقم (وبيوصلك تنبيه)، وبيرجع للأساسي أول ما يتصل.">
+          <select value={s.backupAccountId} onChange={(e) => set("backupAccountId", e.target.value)}>
+            <option value="">بدون رقم احتياطي</option>
+            {waAccounts
+              .filter((a) => a.id !== (s.accountId || ""))
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} {a.phone ? `(+${a.phone})` : ""}
+                </option>
+              ))}
+          </select>
+        </Field>
         <Field label="أيام اللقاء ووقت كل يوم (بتوقيت دبي)" hint="ليلة قبل = البوك بيبدأ من الليلة اللي قبل اللقاء (مناسب للقاءات الاثنين والأربعاء).">
           <div className="sched">
             {DAYS.map((d, i) => {
@@ -365,6 +377,34 @@ export function FunnelSettings({ cfg }) {
         <Field label="كلمات المشكلة بالردود بعد البوك (وحدة بكل سطر)">
           <textarea rows={4} value={Array.isArray(s.problemWords) ? s.problemWords.join("\n") : s.problemWords} onChange={(e) => set("problemWords", e.target.value)} />
         </Field>
+      </Panel>
+
+      <Panel title="ما رد على رسالة الترحيب">
+        <Field label="بعد كم دقيقة بدون رد؟ (0 = مطفي)" hint="تذكير قصير مرة وحدة للي ما رد على أول رسالة. بيحترم ساعات الهدوء.">
+          <input {...num("welcomeNudgeAfter", { min: 0, max: 1440 })} />
+        </Field>
+        <div className="msg-edit">
+          <textarea rows={3} value={s.welcomeNudgeText} onChange={(e) => set("welcomeNudgeText", e.target.value)} />
+        </div>
+      </Panel>
+
+      <Panel title="تحية وتوقيت حسب بلد الشخص">
+        <p className="small-text muted">
+          <b>{"{تحية}"}</b> بتصير «صباح الخير» أو «مساء الخير» حسب الساعة عند الشخص، و<b>{"{ساعة_محلي_كاملة}"}</b> ساعة اللقاء بتوقيت بلده مع ص/م، و<b>{"{بلدك}"}</b> اسم بلده، و<b>{"{مدينته}"}</b> مدينته من الاستمارة.
+        </p>
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => {
+            const localTime = (t) => String(t).replace(/\{ساعة_دبي\}(\*?)\s*(مساءً|مساء|م)?\s*بتوقيت دبي/g, "{ساعة_محلي_كاملة}$1 بتوقيت {بلدك}");
+            const greet = (t) => String(t).replace(/^\s*(مرحباً|مرحبا|أهلاً|اهلا|أهلا|هلا)(?=\s)/, "{تحية}");
+            const steps = s.steps.map((st, i) => ({ ...st, messages: st.messages.map((m, j) => (i === 0 && j === 0 ? greet(localTime(m)) : localTime(m))) }));
+            set("steps", steps);
+            toast("انعدّلت النصوص — راجعها تحت واحفظ", "ok", 6000);
+          }}
+        >
+          ✨ حط التحية وتوقيت بلد الشخص بنصوصي
+        </button>
       </Panel>
 
       <Panel title="في حال لم يتم الرد">
