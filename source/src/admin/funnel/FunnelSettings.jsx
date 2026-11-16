@@ -59,7 +59,43 @@ export function FunnelSettings({ cfg }) {
   return (
     <div className="settings-page">
       <Panel title="التشغيل">
-        <Toggle checked={s.enabled} onChange={(v) => set("enabled", v)} label="تفعيل المتابعة التلقائية يوم اللقاء" hint="لما تكون مطفية ما بينبعت ولا إشي تلقائي." />
+        <Toggle checked={s.enabled} onChange={(v) => set("enabled", v)} label="تفعيل المتابعة التلقائية" hint="لما تكون مطفية ما بينبعت ولا إشي تلقائي." />
+        <Field label="طريقة الترحيب">
+          <div className="chips">
+            {[
+              ["meeting", "دفعة يوم اللقاء"],
+              ["afterReg", "بعد التسجيل بوقت"],
+            ].map(([k, l]) => (
+              <button key={k} type="button" className={"chip" + (s.mode === k ? " active" : "")} onClick={() => set("mode", k)}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </Field>
+        {s.mode === "afterReg" && (
+          <>
+            <p className="small-text muted">
+              كل واحد بيسجّل بيوصله الترحيب بعد {s.regDelay} دقيقة، وبين كل ترحيب والتاني {s.regGap} دقايق (الأقدم أول). بعدها بيكمّل السيناريو وبيعزمه على أقرب لقاء. ما بينبعت إشي بساعات الهدوء.
+            </p>
+            <div className="form-grid">
+              <Field label="بعد التسجيل بـ (دقيقة)">
+                <input type="number" min={0} max={1440} value={s.regDelay} onChange={(e) => set("regDelay", Number(e.target.value))} />
+              </Field>
+              <Field label="بين ترحيب والتاني (دقيقة)">
+                <input type="number" min={1} max={240} value={s.regGap} onChange={(e) => set("regGap", Number(e.target.value))} />
+              </Field>
+              <Field label="أقصى عدد باليوم">
+                <input type="number" min={1} max={1000} value={s.dailyCap} onChange={(e) => set("dailyCap", Number(e.target.value))} />
+              </Field>
+              <Field label="الهدوء من (توقيت مصر)">
+                <input type="time" value={s.quietStart} onChange={(e) => set("quietStart", e.target.value)} />
+              </Field>
+              <Field label="لحد">
+                <input type="time" value={s.quietEnd} onChange={(e) => set("quietEnd", e.target.value)} />
+              </Field>
+            </div>
+          </>
+        )}
         <Toggle checked={s.manualOnly} onChange={(v) => set("manualOnly", v)} label="يدوي بس — الترحيب ما بينبعت إلا لما أضغط الزر" hint={`ما بتبدأ الدفعة لحالها الساعة ${s.startTime}. بتبدأها إنت من زر «ابدأ دفعة اليوم هلأ» بصفحة المتابعة، وبيشتغل بس بأيام اللقاء. باقي السيناريو (الردود والتذكيرات) بيكمّل عادي.`} />
         <Field label="حساب الواتساب اللي بيتابع" hint="نفس الرقم لازم يكون اللي بيرد عليه العملاء.">
           <select value={s.accountId} onChange={(e) => set("accountId", e.target.value)}>

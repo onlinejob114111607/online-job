@@ -19,7 +19,20 @@ export function StatusPanel({ cfg, rawExists }) {
   const acc = waAccounts.find((a) => a.id === accId);
   const at = next ? meetingOf(cfg, next.key) : null;
 
+  const afterReg = cfg.mode === "afterReg";
   async function runNow() {
+    if (afterReg) {
+      if (!confirm("نبعت ترحيب هلأ لأقدم واحد سجّل وصار جاهز؟ (بدون ما نستنى الفاصل)")) return;
+      setBusy(true);
+      try {
+        const r = await runCommand("wa", "funnel_run_now", {}, { timeout: 60_000 });
+        toast(r?.note || "تم", r?.added ? "ok" : "bad", 5000);
+      } catch (e) {
+        toast(e.message, "bad");
+      }
+      setBusy(false);
+      return;
+    }
     if (cfg.manualOnly && !cfg.days.includes(cairoWeekday())) {
       toast(`اليوم مش يوم لقاء — الدفعة بتنبعت بس ${cfg.days.map((d) => DAYS[d]).join(" و")}`, "bad", 6000);
       return;
@@ -43,7 +56,7 @@ export function StatusPanel({ cfg, rawExists }) {
       title="متابعة يوم اللقاء"
       actions={
         <button className="btn small" disabled={busy || !cfg.enabled} onClick={runNow} title="لتجربة أو لو بدك تبدأ قبل الموعد">
-          {busy ? "جاري..." : "ابدأ دفعة اليوم هلأ"}
+          {busy ? "جاري..." : afterReg ? "رحّب بالجاي هلأ" : "ابدأ دفعة اليوم هلأ"}
         </button>
       }
     >
@@ -66,8 +79,17 @@ export function StatusPanel({ cfg, rawExists }) {
           sub={at ? `${timeIn(at, "Asia/Dubai")} دبي · ${timeIn(at, "Africa/Cairo")} مصر` : ""}
           color="#7c3aed"
         />
-        <Kpi label="بيبدأ الترحيب" value={cfg.manualOnly ? "يدوي" : cfg.startTime} sub={cfg.manualOnly ? "بالزر بس" : "توقيت مصر"} color="#059669" />
-        <Kpi label="بكل لقاء" value={cfg.batchSize} sub="شخص" color="#d97706" />
+        {afterReg ? (
+          <>
+            <Kpi label="الترحيب" value={cfg.manualOnly ? "يدوي" : `${cfg.regDelay} د`} sub={cfg.manualOnly ? "بالزر بس" : "بعد التسجيل"} color="#059669" />
+            <Kpi label="باليوم" value={cfg.dailyCap} sub={`كل ${cfg.regGap} د · هدوء ${cfg.quietStart}–${cfg.quietEnd}`} color="#d97706" />
+          </>
+        ) : (
+          <>
+            <Kpi label="بيبدأ الترحيب" value={cfg.manualOnly ? "يدوي" : cfg.startTime} sub={cfg.manualOnly ? "بالزر بس" : "توقيت مصر"} color="#059669" />
+            <Kpi label="بكل لقاء" value={cfg.batchSize} sub="شخص" color="#d97706" />
+          </>
+        )}
       </div>
       {waiting > cfg.batchSize && next && (
         <p className="small-text muted">
