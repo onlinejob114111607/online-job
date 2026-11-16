@@ -99,7 +99,7 @@ export const SITE = {
 export const COUNTRIES = [
   { name: "مصر", code: "20" },
   { name: "فلسطين", code: "970" },
-  { name: "فلسطين", code: "972" },
+  { name: "إسرائيل", code: "972" },
   { name: "الأردن", code: "962" },
   { name: "السعودية", code: "966" },
   { name: "الإمارات", code: "971" },

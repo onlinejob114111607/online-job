@@ -1,3 +1,4 @@
+import { stepIndexOf } from "../../funnelDefaults";
 import { useState } from "react";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
@@ -39,7 +40,8 @@ export function Conversations({ rows, loading, counts, cfg, day }) {
         <div className="list">
           {shown.map((c) => {
             const [l, k] = STATUS[statusOf(c)] || [c.status, ""];
-            const step = cfg.steps[c.step];
+            const si = stepIndexOf(cfg, c);
+            const step = cfg.steps[si];
             return (
               <div key={c.id} className={"item conv-item" + (statusOf(c) === "attention" ? " conv-alert" : "")} onClick={() => setOpen(c.id)}>
                 <div className="item-head">
@@ -51,7 +53,7 @@ export function Conversations({ rows, loading, counts, cfg, day }) {
                 <div className="item-meta">
                   {step && c.status !== "queued" && (
                     <span>
-                      خطوة {c.step + 1}/{cfg.steps.length}: {step.label}
+                      خطوة {si + 1}/{cfg.steps.length}: {step.label}
                     </span>
                   )}
                   {c.due != null && <Tag kind="wait">بينبعتله هلأ</Tag>}
@@ -82,7 +84,8 @@ export function ConvModal({ c, cfg, day, onClose }) {
   const ref = doc(db, "funnel", c.id);
   const lastQ = [...(c.history || [])].reverse().find((h) => h.d === "in")?.t || "";
   const isToday = day === cairoDayKey();
-  const next = cfg.steps[(c.step ?? -1) + 1];
+  const si = stepIndexOf(cfg, c);
+  const next = cfg.steps[(si ?? -1) + 1];
   const live = ["active", "queued"].includes(c.status);
 
   async function act(patch, msg) {
@@ -126,9 +129,9 @@ export function ConvModal({ c, cfg, day, onClose }) {
     >
       <div className="item-meta">
         <Tag kind={STATUS[statusOf(c)]?.[1]}>{STATUS[statusOf(c)]?.[0] || c.status}</Tag>
-        {cfg.steps[c.step] && (
+        {cfg.steps[si] && (
           <span>
-            خطوة {c.step + 1}: {cfg.steps[c.step].label} — مستني: {WAIT[cfg.steps[c.step].waitFor]}
+            خطوة {si + 1}: {cfg.steps[si].label} — مستني: {WAIT[cfg.steps[si].waitFor]}
           </span>
         )}
         <a className="btn small wa-solid" href={waLink(c.phone)} target="_blank" rel="noreferrer">
@@ -171,9 +174,9 @@ export function ConvModal({ c, cfg, day, onClose }) {
           )}
           <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} placeholder="اكتب ردك أو اختار رسالة جاهزة..." />
           <div className="hint">المتغيرات زي {"{name}"} و{"{التيم_ليدر}"} و{"{التكلفة}"} بتتعبى لحالها وقت الإرسال. بتقدر كمان تجاوب من تيليجرام: Reply على تنبيه "محتاج جوابك".</div>
-          {c.status === "active" && cfg.steps[c.step]?.resume && (
+          {c.status === "active" && cfg.steps[si]?.resume && (
             <label className="check-line">
-              <input type="checkbox" checked={resume} onChange={(e) => setResume(e.target.checked)} /> بعد جوابي كمّل المحادثة: "{cfg.steps[c.step].resume.slice(0, 60)}"
+              <input type="checkbox" checked={resume} onChange={(e) => setResume(e.target.checked)} /> بعد جوابي كمّل المحادثة: "{cfg.steps[si].resume.slice(0, 60)}"
             </label>
           )}
           {lastQ && (
@@ -189,7 +192,7 @@ export function ConvModal({ c, cfg, day, onClose }) {
 
       <div className="btn-row">
         {c.status === "active" && next && c.due == null && (
-          <button className="btn small primary" onClick={() => act({ due: c.step + 1, attention: false, attentionWhy: null }, "رح تنبعت الخطوة الجاية")}>
+          <button className="btn small primary" onClick={() => act({ due: si + 1, stepKey: cfg.steps[si]?.key || null, stepsV: 2, attention: false, attentionWhy: null }, "رح تنبعت الخطوة الجاية")}>
             كمّل للخطوة الجاية: {next.label}
           </button>
         )}
