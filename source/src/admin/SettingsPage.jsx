@@ -337,7 +337,7 @@ function WaGlobal({ s, set }) {
             <input min={0} max={30} {...numIn(s, set, "wa.typingSeconds")} />
           </Field>
         </div>
-        <Toggle checked={!!s.wa.mentionAll} onChange={(v) => set("wa.mentionAll", v)} label="منشن الكل (افتراضياً بالنشر)" hint="بيوصل إشعار لكل أعضاء المجموعة. بتقدر تشغّله أو تطفيه لكل منشور لحاله من صفحة النشر." />
+        <Toggle checked={!!s.wa.mentionAll} onChange={(v) => set("wa.mentionAll", v)} label="منشن الكل (افتراضياً بالنشر)" hint="بيوصل إشعار لكل أعضاء المجموعة، إلا أرقامك (ما بينعملها منشن). بتقدر تشغّله أو تطفيه لكل منشور لحاله من صفحة النشر." />
         <Toggle checked={s.wa.riskThrottle !== false} onChange={(v) => set("wa.riskThrottle", v)} label="مقياس خطر الحظر" hint="من الفشل والتهدئة والانقطاع آخر 24 ساعة. فوق 60/100 الرقم بيخفف نشره للنص لحاله، وفوق 80 بيوقف 6 ساعات." />
         <Toggle checked={s.wa.replyAlerts !== false} onChange={(v) => set("wa.replyAlerts", v)} label="تنبيه الردود على منشوراتي" hint="رد على منشورك، منشن، أو سؤال (كم السعر / كيف بسجل) بعد منشورك ← تنبيه عتيليجرام فيه رقم الشخص." />
         <Toggle checked={s.wa.autoCategory !== false} onChange={(v) => set("wa.autoCategory", v)} label="تصنيف المجموعات تلقائياً من اسمها" hint="وظائف، بيع وشراء، طلاب، عمل أونلاين، نسائي — للمجموعات الجديدة اللي تصنيفها «عام» أو من الصياد." />

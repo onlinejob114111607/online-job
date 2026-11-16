@@ -299,7 +299,7 @@ export default function PostForm({ acc, groups, draft, onDraftUsed, onPosted }) 
 
         <fieldset>
           <legend>خيارات</legend>
-          <Toggle checked={mentionAll} onChange={setMentionAll} label="منشن الكل" hint="بيوصل إشعار لكل أعضاء المجموعة (منشن مخفي ما بيبين بالنص). بيرفع التفاعل بس بيزعج — استعمله للمنشورات المهمة، وكتر منه بيزيد خطر الحظر." />
+          <Toggle checked={mentionAll} onChange={setMentionAll} label="منشن الكل" hint="بيوصل إشعار لكل أعضاء المجموعة، إلا أرقامك (منشن مخفي ما بيبين بالنص). بيرفع التفاعل بس بيزعج — استعمله للمنشورات المهمة، وكتر منه بيزيد خطر الحظر." />
           {when === "now" && (
             <Toggle
               checked={bestTime}
