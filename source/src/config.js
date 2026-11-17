@@ -15,9 +15,9 @@ export const firebaseConfig = {
 // 1-ب) Supabase (بديل Firebase) — لما active تصير true، الموقع واللوحة والمتجر بيشتغلوا على Supabase
 //      الرابط والمفتاح من Supabase ← Project Settings ← API (المفتاح "anon public" — مش service_role)
 export const SUPABASE = {
-  active: false, // ← true يوم التبديل (قبلها الموقع واللوحة والمتجر على Firebase)
+  active: true, // ← false للرجوع لـ Firebase
   url: "https://amqdckslpgornuxmbadv.supabase.co",
-  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtcWRja3NscGdvcm51eG1iYWR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4Njc5ODUsImV4cCI6MjExMDQ0Mzk4NX0.WMK__RXyp-ytjM6PVSJD1cXEX9QnS9yTlay4TcxF_FI",
+  anonKey: "sb_publishable_e_7X9ABzyHRIdktDL0W2ow_geSy5F0j",
 };
 
 // 2) إيميل الأدمن (نفس الإيميل اللي بتكتبه في firestore.rules)
