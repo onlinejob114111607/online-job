@@ -12,6 +12,13 @@ export const firebaseConfig = {
   appId: "1:401550393594:web:8940c00cb3c078e49ec943",
 };
 
+// 1-ب) Supabase (بديل Firebase) — لما تعبّي الرابط والمفتاح العام، الموقع واللوحة والمتجر بيشتغلوا على Supabase
+//      الرابط والمفتاح من Supabase ← Project Settings ← API (المفتاح "anon public" — مش service_role)
+export const SUPABASE = {
+  url: "",
+  anonKey: "",
+};
+
 // 2) إيميل الأدمن (نفس الإيميل اللي بتكتبه في firestore.rules)
 export const ADMIN_EMAIL = "osama7850956@gmail.com";
 

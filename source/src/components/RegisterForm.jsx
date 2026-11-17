@@ -94,7 +94,7 @@ export default function RegisterForm({ site }) {
       setStep(1);
     } catch (err) {
       // القواعد بترفض الإنشاء لو الرقم مسجل من قبل
-      if (err?.code === "permission-denied") setState("duplicate");
+      if (err?.code === "permission-denied" || err?.code === "already-exists") setState("duplicate");
       else setState("error");
     }
   }
