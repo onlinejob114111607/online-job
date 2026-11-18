@@ -72,8 +72,7 @@ export default function RegisterForm({ site }) {
     const country = COUNTRIES[f.countryIdx];
     const phone = buildIntlPhone(country.code, f.phone);
 
-    try {
-      await setDoc(doc(db, "registrations", phone), {
+    const data = {
         name: f.name.trim().slice(0, 80),
         phone,
         country: country.name,
@@ -88,14 +87,21 @@ export default function RegisterForm({ site }) {
         notes: "",
         consent: true,
         createdAt: serverTimestamp(),
-      });
+      };
+    const exists = (err) => err?.code === "permission-denied" || err?.code === "already-exists";
+    try {
+      // أول تسجيل للرقم بيتحفظ باسم الرقم، وأي تسجيل بعده لنفس الرقم بيتحفظ كتسجيل جديد جنبه
+      try {
+        await setDoc(doc(db, "registrations", phone), data);
+      } catch (err) {
+        if (!exists(err)) throw err;
+        await setDoc(doc(db, "registrations", `${phone}-${Date.now()}`), data);
+      }
       setState("done");
       setF(empty);
       setStep(1);
     } catch (err) {
-      // القواعد بترفض الإنشاء لو الرقم مسجل من قبل
-      if (err?.code === "permission-denied" || err?.code === "already-exists") setState("duplicate");
-      else setState("error");
+      setState("error");
     }
   }
 
