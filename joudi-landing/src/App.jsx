@@ -7,6 +7,7 @@ import WhatsAppFloat from "./components/WhatsAppFloat";
 import HeroSequence from "./sections/HeroSequence";
 import Why from "./sections/Why";
 import Collections from "./sections/Collections";
+import Products from "./sections/Products";
 import HowTo from "./sections/HowTo";
 import Testimonials from "./sections/Testimonials";
 import FinalCta from "./sections/FinalCta";
@@ -43,6 +44,7 @@ export default function App() {
         <HeroSequence revealed={revealed} />
         <Why />
         <Collections />
+        <Products />
         <HowTo />
         <Testimonials />
         <FinalCta />

@@ -8,12 +8,12 @@ import { Q, reducedMotion } from "../lib/device";
 
 const gold = goldMaterial(0.15);
 const goldSoft = goldMaterial(0.32);
-const wine = new THREE.MeshPhysicalMaterial({ color: "#5A1E2B", roughness: 0.3, clearcoat: 1 });
+const wine = new THREE.MeshPhysicalMaterial({ color: "#3B2496", roughness: 0.3, clearcoat: 1 });
 const glass =
   Q.glass === "simple"
     ? new THREE.MeshPhysicalMaterial({ color: "#FFF7EC", roughness: 0.04, clearcoat: 1, transparent: true, opacity: 0.4, envMapIntensity: 2 })
     : new THREE.MeshPhysicalMaterial({ color: "#FFF7EC", transmission: 1, thickness: 0.2, roughness: 0.04, ior: 1.5, envMapIntensity: 1.5 });
-const dark = new THREE.MeshPhysicalMaterial({ color: "#2a1614", roughness: 0.15, metalness: 0.4 });
+const dark = new THREE.MeshPhysicalMaterial({ color: "#1a1338", roughness: 0.15, metalness: 0.4 });
 
 function Truck() {
   const wheel = useMemo(() => new THREE.CylinderGeometry(0.17, 0.17, 0.12, 32), []);

@@ -120,7 +120,7 @@ export default function HeroSequence({ revealed }) {
             )}
           </div>
           {/* غشاوة ناعمة خلف النص للقراءة */}
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(250,246,240,.94)_0%,rgba(250,246,240,.86)_38%,rgba(250,246,240,.35)_52%,transparent_62%)] md:bg-[linear-gradient(270deg,rgba(250,246,240,.85)_0%,rgba(250,246,240,.35)_38%,transparent_58%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(247,244,255,.94)_0%,rgba(247,244,255,.86)_38%,rgba(247,244,255,.35)_52%,transparent_62%)] md:bg-[linear-gradient(270deg,rgba(247,244,255,.85)_0%,rgba(247,244,255,.35)_38%,transparent_58%)]" />
           <HeroCopy revealed={revealed} />
           <ScrollCue revealed={revealed} />
 

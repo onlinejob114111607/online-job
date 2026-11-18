@@ -6,7 +6,7 @@ import { inputXY } from "../lib/store";
 import { reducedMotion } from "../lib/device";
 
 // قماش حرير عنابي متموّج بحركة دائمة
-export default function Silk({ segments = 140, color = "#6B2333", deep = "#2A0B12", width = 15, height = 8, opacity = 1, amp = 1, ...props }) {
+export default function Silk({ segments = 140, color = "#4C2BB0", deep = "#140E33", width = 15, height = 8, opacity = 1, amp = 1, ...props }) {
   const mat = useRef();
   const uniforms = useMemo(
     () => ({
@@ -16,7 +16,7 @@ export default function Silk({ segments = 140, color = "#6B2333", deep = "#2A0B1
       uColor: { value: new THREE.Color(color) },
       uDeep: { value: new THREE.Color(deep) },
       uSheen: { value: new THREE.Color("#FFE9D2") },
-      uGold: { value: new THREE.Color("#C9A36A") },
+      uGold: { value: new THREE.Color("#EDB23A") },
       uOpacity: { value: opacity },
     }),
     []

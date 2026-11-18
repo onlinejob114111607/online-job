@@ -19,7 +19,7 @@ const scene = new URLSearchParams(location.search).get("scene") || "beauty";
 const gold = goldMaterial(0.14);
 const pearlMat = new THREE.MeshPhysicalMaterial({ color: "#FFF8EE", roughness: 0.16, clearcoat: 1, sheen: 1, sheenColor: "#F2D9C0", iridescence: 0.7, iridescenceIOR: 1.6 });
 
-function Backdrop({ a = "#3a1420", b = "#120c0b" }) {
+function Backdrop({ a = "#251a5c", b = "#0d0a1c" }) {
   const mat = useMemo(
     () =>
       new THREE.ShaderMaterial({
@@ -74,7 +74,7 @@ function Fashion() {
         <Hanger />
       </group>
       <Silk position={[0, -0.75, 0.1]} rotation={[0.05, -0.25, 0]} scale={0.36} width={7.5} height={12.8} segments={200} amp={1.5} color="#8A2B40" deep="#2A0910" />
-      <Silk position={[0.6, -1, -1.2]} rotation={[0, 0.5, 0.15]} scale={0.5} width={8} height={10} segments={140} amp={1.3} color="#5A1E2B" deep="#1e070c" opacity={0.75} />
+      <Silk position={[0.6, -1, -1.2]} rotation={[0, 0.5, 0.15]} scale={0.5} width={8} height={10} segments={140} amp={1.3} color="#3B2496" deep="#1e070c" opacity={0.75} />
       <GoldDust count={160} box={[5, 6, 2]} size={30} />
     </>
   );
@@ -195,7 +195,7 @@ function Home() {
       <group position={[0.75, 0, 0.35]}>
         <mesh position-y={0.32}>
           <cylinderGeometry args={[0.26, 0.26, 0.64, 64]} />
-          <meshPhysicalMaterial color="#5A1E2B" roughness={0.35} clearcoat={0.6} />
+          <meshPhysicalMaterial color="#3B2496" roughness={0.35} clearcoat={0.6} />
         </mesh>
         <mesh material={gold} position-y={0.64} rotation-x={Math.PI / 2}>
           <torusGeometry args={[0.26, 0.015, 8, 64]} />
@@ -212,10 +212,10 @@ function Home() {
 }
 
 const SCENES = {
-  fashion: { C: Fashion, cam: [0.6, 0.4, 9.5], look: [0, 0.15, 0], bg: ["#4a1622", "#100a09"] },
-  accessories: { C: Accessories, cam: [0.3, 3.6, 4.4], look: [-0.15, 0, 0.2], bg: ["#3a1420", "#100a09"] },
-  beauty: { C: Beauty, cam: [0.3, 1.9, 6.4], look: [0, 0.6, 0], bg: ["#4a1622", "#120c0b"] },
-  home: { C: Home, cam: [0.4, 1.7, 5.2], look: [0, 0.95, 0], bg: ["#3a1a14", "#100a09"] },
+  fashion: { C: Fashion, cam: [0.6, 0.4, 9.5], look: [0, 0.15, 0], bg: ["#2f1d78", "#0b0818"] },
+  accessories: { C: Accessories, cam: [0.3, 3.6, 4.4], look: [-0.15, 0, 0.2], bg: ["#251a5c", "#0b0818"] },
+  beauty: { C: Beauty, cam: [0.3, 1.9, 6.4], look: [0, 0.6, 0], bg: ["#2f1d78", "#0d0a1c"] },
+  home: { C: Home, cam: [0.4, 1.7, 5.2], look: [0, 0.95, 0], bg: ["#3a1a14", "#0b0818"] },
   hero: null,
 };
 

@@ -1,42 +1,33 @@
 import { useEffect, useRef } from "react";
 import SectionHeading from "../components/SectionHeading";
 import Reveal from "../components/Reveal";
-import { TESTIMONIALS } from "../config";
+import { useState } from "react";
+import { STORE_URL } from "../config";
+import { useCatalog } from "../lib/catalog";
 import { reducedMotion } from "../lib/device";
 import { scroll } from "../lib/store";
 
-// بطاقات آراء بتلف بشكل دائري ثلاثي الأبعاد — الآراء من config.js فقط (حقيقية)
-function Card({ t }) {
-  const empty = !t.text;
+// صور حقيقية لآراء الزبائن (من قسم "آراء زبائننا" بالمتجر) بشكل حلقة ثلاثية الأبعاد
+function Card({ f, onOpen }) {
   return (
-    <figure className="glass gold-frame flex h-full flex-col justify-between rounded-[1.75rem] p-7 text-right">
-      <div>
-        <svg viewBox="0 0 40 30" className="mb-5 h-7 w-9 text-gold" aria-hidden="true">
-          <path fill="currentColor" d="M0 30V17C0 7 6 1.5 15 0l1.6 3.6C11 5.4 8.5 9 8.3 13H16v17H0Zm24 0V17C24 7 30 1.5 39 0l1.6 3.6C35 5.4 32.5 9 32.3 13H40v17H24Z" opacity=".75" />
-        </svg>
-        {empty ? (
-          <blockquote className="grid min-h-[7.5rem] place-items-center rounded-2xl border border-dashed border-gold/60 bg-ivory/40 p-4 text-center font-display text-lg text-wine/70">
-            [رأي عميلة حقيقي]
-          </blockquote>
-        ) : (
-          <blockquote className="min-h-[7.5rem] font-display text-lg leading-9 text-wine">«{t.text}»</blockquote>
-        )}
-      </div>
-      <figcaption className="mt-6 flex items-center gap-3 border-t border-gold/25 pt-5">
-        <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-gold-light to-gold-deep font-display text-wine-3">{empty ? "؟" : t.name.trim()[0]}</span>
-        <span>
-          <span className="block font-display font-bold text-wine">{empty ? "[اسم العميلة]" : t.name}</span>
-          <span className="block text-sm text-ink/60">{empty ? "[المدينة]" : t.city}</span>
-        </span>
-      </figcaption>
+    <figure className="glass gold-frame h-full overflow-hidden rounded-[1.75rem] p-2" onClick={() => onOpen(f)}>
+      <img src={f.img} alt={f.text || "رأي زبون"} loading="lazy" draggable="false" className="h-full w-full rounded-[1.4rem] object-cover object-top" />
     </figure>
   );
 }
 
 export default function Testimonials() {
+  const data = useCatalog();
+  const list = (data?.feedback || []).slice(0, 10);
+  if (list.length < 3) return null;
+  return <Ring list={list} />;
+}
+
+function Ring({ list }) {
   const stage = useRef(null);
   const ring = useRef(null);
-  const n = TESTIMONIALS.length;
+  const [open, setOpen] = useState(null);
+  const n = list.length;
 
   useEffect(() => {
     const el = ring.current;
@@ -77,12 +68,15 @@ export default function Testimonials() {
     });
     io.observe(stage.current);
     const down = (e) => {
-      drag = { x: e.clientX, a: angle, t: performance.now() };
+      drag = { x: e.clientX, a: angle, t: performance.now(), moved: false };
+      window.__ringDrag = false;
       stage.current.setPointerCapture?.(e.pointerId);
     };
     const move = (e) => {
       if (!drag) return;
       const dx = e.clientX - drag.x;
+      if (Math.abs(dx) > 6) drag.moved = true;
+      window.__ringDrag = drag.moved;
       const na = drag.a + dx * 0.25;
       vel = na - angle;
       angle = na;
@@ -106,26 +100,39 @@ export default function Testimonials() {
       s.removeEventListener("pointerup", up);
       s.removeEventListener("pointercancel", up);
     };
-  }, []);
+  }, [n]);
 
   return (
     <section id="reviews" className="relative overflow-hidden bg-ivory-2 py-28 sm:py-36">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_60%,rgba(201,163,106,.22),transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_60%,rgba(245,179,1,.18),transparent_70%)]" />
       <div className="container-lux relative">
-        <SectionHeading eyebrow="IN THEIR WORDS" title="بكلماتهنّ" sub="هنا نحفظ كلمات عميلاتنا كما قلنها… حقيقيةً، بلا تجميل." />
+        <SectionHeading eyebrow="REAL CUSTOMERS" title="شو حكوا زبائننا" sub="صور حقيقية من رسائل زبائننا بعد ما وصلتهم طلبياتهم." />
       </div>
       <Reveal className="relative mt-14 sm:mt-20">
         <div ref={stage} className="relative mx-auto h-[25rem] w-full touch-pan-y select-none sm:h-[27rem]" style={{ perspective: "1600px" }} data-cursor="hover" aria-roledescription="carousel">
           <div ref={ring} className="absolute left-1/2 top-0 h-full w-[17rem] -translate-x-1/2 sm:w-[20rem]" style={{ transformStyle: "preserve-3d" }}>
-            {TESTIMONIALS.map((t, i) => (
-              <div key={i} className="absolute inset-x-0 top-4 h-[22rem] sm:h-[23rem]" style={{ backfaceVisibility: "hidden" }}>
-                <Card t={t} />
+            {list.map((f, i) => (
+              <div key={i} className="absolute inset-x-0 top-4 h-[22rem] cursor-zoom-in sm:h-[23rem]" style={{ backfaceVisibility: "hidden" }}>
+                <Card f={f} onOpen={(x) => !window.__ringDrag && setOpen(x)} />
               </div>
             ))}
           </div>
         </div>
-        <p className="mt-6 text-center text-sm text-ink/50">اسحبي البطاقات لتدويرها</p>
+        <p className="mt-6 text-center text-sm text-ink/50">اسحب الصور لتدويرها، واضغط على أي صورة لتكبيرها</p>
+        <p className="mt-4 text-center">
+          <a href={`${STORE_URL}#/reviews`} target="_blank" rel="noopener" className="font-display font-bold text-wine underline decoration-gold underline-offset-8">
+            شوف كل الآراء بالمتجر
+          </a>
+        </p>
       </Reveal>
+      {open && (
+        <div className="fixed inset-0 z-[90] grid place-items-center bg-coal/90 p-4 backdrop-blur-sm" onClick={() => setOpen(null)} role="dialog" aria-modal="true">
+          <img src={open.img} alt={open.text || "رأي زبون"} className="max-h-[88vh] max-w-full rounded-2xl shadow-2xl" />
+          <button type="button" className="absolute right-5 top-5 grid h-11 w-11 place-items-center rounded-full bg-ivory/15 text-2xl text-ivory" aria-label="إغلاق">
+            ×
+          </button>
+        </div>
+      )}
     </section>
   );
 }

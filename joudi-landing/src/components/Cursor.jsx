@@ -78,12 +78,12 @@ export default function Cursor() {
     <>
       <style>{`
         .lux-ring{position:fixed;left:0;top:0;width:34px;height:34px;border-radius:50%;pointer-events:none;z-index:9999;opacity:0;
-          border:1px solid rgba(201,163,106,.85);transition:opacity .4s, background-color .6s var(--ease-lux), border-color .6s, box-shadow .6s;
+          border:1px solid rgba(237,178,58,.85);transition:opacity .4s, background-color .6s var(--ease-lux), border-color .6s, box-shadow .6s;
           mix-blend-mode:normal;display:grid;place-items:center}
-        .lux-ring.is-hover{background:radial-gradient(circle at 35% 30%,rgba(255,244,220,.55),rgba(201,163,106,.22) 55%,rgba(201,163,106,.08));
-          border-color:rgba(242,227,196,.95);box-shadow:0 0 24px rgba(201,163,106,.55), inset 0 0 10px rgba(255,255,255,.35);backdrop-filter:blur(2px)}
-        .lux-ring span{font:500 4.2px/1 Tajawal,sans-serif;color:#5A1E2B;letter-spacing:.02em;white-space:nowrap}
-        .lux-dot{position:fixed;left:0;top:0;width:5px;height:5px;border-radius:50%;background:#C9A36A;pointer-events:none;z-index:9999;opacity:0;transition:opacity .3s;box-shadow:0 0 8px rgba(230,204,154,.9)}
+        .lux-ring.is-hover{background:radial-gradient(circle at 35% 30%,rgba(255,244,220,.55),rgba(237,178,58,.22) 55%,rgba(237,178,58,.08));
+          border-color:rgba(242,227,196,.95);box-shadow:0 0 24px rgba(237,178,58,.55), inset 0 0 10px rgba(255,255,255,.35);backdrop-filter:blur(2px)}
+        .lux-ring span{font:500 4.2px/1 Tajawal,sans-serif;color:#3B2496;letter-spacing:.02em;white-space:nowrap}
+        .lux-dot{position:fixed;left:0;top:0;width:5px;height:5px;border-radius:50%;background:#EDB23A;pointer-events:none;z-index:9999;opacity:0;transition:opacity .3s;box-shadow:0 0 8px rgba(230,204,154,.9)}
       `}</style>
       <div ref={ring} className="lux-ring" aria-hidden="true">
         <span ref={label} />

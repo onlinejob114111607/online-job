@@ -1,5 +1,9 @@
 // ⚙️ إعدادات المتجر — عدّلي هون بس
-export const STORE_URL = "https://onlinejob114111607.github.io/shop/?lang=ar";
+export const SHOP_BASE = "https://onlinejob114111607.github.io/shop/";
+export const STORE_URL = SHOP_BASE + "?lang=ar";
+// روابط مباشرة لصفحات المتجر
+export const productUrl = (id) => `${STORE_URL}#/p/${encodeURIComponent(id)}`;
+export const categoryUrl = (c) => `${STORE_URL}#/c/${encodeURIComponent(c)}`;
 
 // رقم واتساب بصيغة دولية بدون + أو أصفار (مثال: 970599123456).
 // إذا تركتِه فاضي، أزرار واتساب بتودّي على المتجر بدل واتساب.

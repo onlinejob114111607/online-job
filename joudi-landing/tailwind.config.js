@@ -5,11 +5,11 @@ export default {
     extend: {
       screens: { xs: "400px" },
       colors: {
-        ivory: { DEFAULT: "#FAF6F0", 2: "#F3ECE1", 3: "#E9DFD0" },
-        wine: { DEFAULT: "#5A1E2B", 2: "#471621", 3: "#2E0D15", soft: "#7A3140" },
-        gold: { DEFAULT: "#C9A36A", light: "#E6CC9A", pale: "#F2E3C4", deep: "#9C7A45" },
-        coal: { DEFAULT: "#1E1816", 2: "#2A2220", 3: "#140F0E" },
-        ink: "#3A2A27",
+        ivory: { DEFAULT: "#F7F4FF", 2: "#EFEAFD", 3: "#E3DBFA" },
+        wine: { DEFAULT: "#3B2496", 2: "#2a1b63", 3: "#1A1240", soft: "#5B3CC4" },
+        gold: { DEFAULT: "#EDB23A", light: "#FFD677", pale: "#FFEBB8", deep: "#C48A12" },
+        coal: { DEFAULT: "#0F0B1F", 2: "#1A1533", 3: "#09071A" },
+        ink: "#2A1B63",
       },
       fontFamily: {
         display: ['"El Messiri"', "serif"],

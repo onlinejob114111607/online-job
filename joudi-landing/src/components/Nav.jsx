@@ -18,7 +18,7 @@ export default function Nav({ show }) {
       transition={{ duration: 1.4, delay: 1.6, ease: [0.19, 1, 0.22, 1] }}
       className="fixed inset-x-0 top-0 z-[80] py-3 sm:py-4"
     >
-      <div className={`container-lux flex items-center justify-between rounded-full transition-all duration-700 ease-lux ${solid ? "bg-ivory/75 shadow-[0_10px_40px_-20px_rgba(90,30,43,.4)] backdrop-blur-xl" : "bg-ivory/25 backdrop-blur-md"}`} style={{ paddingBlock: solid ? 8 : 6 }}>
+      <div className={`container-lux flex items-center justify-between rounded-full transition-all duration-700 ease-lux ${solid ? "bg-ivory/75 shadow-[0_10px_40px_-20px_rgba(59,36,150,.4)] backdrop-blur-xl" : "bg-ivory/25 backdrop-blur-md"}`} style={{ paddingBlock: solid ? 8 : 6 }}>
         <a href="#top" onClick={(e) => (e.preventDefault(), scrollToEl("#top"))} className="flex items-baseline gap-2" data-cursor="hover" aria-label="جودي ستور">
           <span className="text-gold-grad font-display text-3xl font-bold leading-none">جودي</span>
           <span className="eyebrow hidden !text-[0.62rem] text-gold-deep xs:inline">JOUDI STORE</span>

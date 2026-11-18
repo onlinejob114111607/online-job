@@ -96,7 +96,7 @@ export default function Preloader({ onReveal, onDone }) {
 
   const drape = {
     background:
-      "linear-gradient(180deg, rgba(0,0,0,.25), transparent 18%, transparent 75%, rgba(0,0,0,.35)), repeating-linear-gradient(90deg, #3d111b 0px, #5a1e2b 22px, #7a3140 34px, #5a1e2b 48px, #3a0f19 70px, #4a1622 84px)",
+      "linear-gradient(180deg, rgba(0,0,0,.25), transparent 18%, transparent 75%, rgba(0,0,0,.35)), repeating-linear-gradient(90deg, #3d111b 0px, #3b2496 22px, #5b3cc4 34px, #3b2496 48px, #3a0f19 70px, #2f1d78 84px)",
   };
 
   return (
@@ -108,16 +108,16 @@ export default function Preloader({ onReveal, onDone }) {
         <div className="pl-edge absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-gold/70 to-transparent opacity-0" />
       </div>
 
-      <div className="pl-content absolute inset-0 grid place-items-center" style={{ background: "radial-gradient(60% 50% at 50% 50%, rgba(90,30,43,.0), rgba(30,10,16,.55))" }}>
+      <div className="pl-content absolute inset-0 grid place-items-center" style={{ background: "radial-gradient(60% 50% at 50% 50%, rgba(59,36,150,.0), rgba(30,10,16,.55))" }}>
         <div className="w-[min(92vw,640px)]">
           <svg viewBox="0 0 600 300" className="w-full overflow-visible" aria-hidden="true">
             <defs>
               <linearGradient id="plg" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#9C7A45" />
-                <stop offset=".35" stopColor="#F2E3C4" />
-                <stop offset=".55" stopColor="#C9A36A" />
-                <stop offset=".8" stopColor="#F6EAD0" />
-                <stop offset="1" stopColor="#B48D55" />
+                <stop offset="0" stopColor="#C48A12" />
+                <stop offset=".35" stopColor="#FFEBB8" />
+                <stop offset=".55" stopColor="#EDB23A" />
+                <stop offset=".8" stopColor="#FFF3D1" />
+                <stop offset="1" stopColor="#D39A1C" />
               </linearGradient>
               <filter id="plglow" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="2.2" result="b" />

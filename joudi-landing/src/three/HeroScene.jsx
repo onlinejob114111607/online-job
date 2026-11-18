@@ -49,9 +49,9 @@ function getShadowTex() {
   c.width = c.height = 128;
   const g = c.getContext("2d");
   const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-  r.addColorStop(0, "rgba(50,18,14,0.75)");
-  r.addColorStop(0.45, "rgba(50,18,14,0.3)");
-  r.addColorStop(1, "rgba(50,18,14,0)");
+  r.addColorStop(0, "rgba(24,14,64,0.75)");
+  r.addColorStop(0.45, "rgba(24,14,64,0.3)");
+  r.addColorStop(1, "rgba(24,14,64,0)");
   g.fillStyle = r;
   g.fillRect(0, 0, 128, 128);
   return (shadowTex = new THREE.CanvasTexture(c));
@@ -72,9 +72,9 @@ function FloorShadow() {
     c.width = c.height = 128;
     const g = c.getContext("2d");
     const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-    r.addColorStop(0, "rgba(60,25,20,0.55)");
-    r.addColorStop(0.55, "rgba(60,25,20,0.18)");
-    r.addColorStop(1, "rgba(60,25,20,0)");
+    r.addColorStop(0, "rgba(30,18,80,0.55)");
+    r.addColorStop(0.55, "rgba(30,18,80,0.18)");
+    r.addColorStop(1, "rgba(30,18,80,0)");
     g.fillStyle = r;
     g.fillRect(0, 0, 128, 128);
     return new THREE.CanvasTexture(c);
@@ -193,11 +193,11 @@ export default function HeroScene({ active = true }) {
       <directionalLight position={[-5, 3, -2]} intensity={0.6} color="#E6B98A" />
       <Suspense fallback={null}>
         <StudioEnv resolution={Q.dpr[1] > 1.5 ? 256 : 128} />
-        <Silk segments={Q.silkSeg} position={[0, 3, -4.2]} rotation={[-0.1, 0, 0.08]} width={22} height={12} deep="#24070D" amp={1.35} />
-        <Silk segments={Math.round(Q.silkSeg * 0.5)} position={[-3.2, 0.6, -2.2]} rotation={[-0.3, 0.5, 0.35]} width={6} height={3.6} color="#7A2C3D" amp={0.55} opacity={0.85} />
+        <Silk segments={Q.silkSeg} position={[0, 3, -4.2]} rotation={[-0.1, 0, 0.08]} width={22} height={12} deep="#0F0A24" amp={1.35} />
+        <Silk segments={Math.round(Q.silkSeg * 0.5)} position={[-3.2, 0.6, -2.2]} rotation={[-0.3, 0.5, 0.35]} width={6} height={3.6} color="#5B3CC4" amp={0.55} opacity={0.85} />
         <Stage open={open} boxRef={boxRef} />
         <FloorShadow />
-        <GoldDust count={Q.particles} box={[11, 7, 7]} position={[0, 2.6, 0]} size={26} color="#B8894A" additive={false} opacity={0.9} />
+        <GoldDust count={Q.particles} box={[11, 7, 7]} position={[0, 2.6, 0]} size={26} color="#D39A1C" additive={false} opacity={0.9} />
         <GoldDust count={Math.round(Q.particles * 0.35)} box={[3, 4, 3]} position={[0, 3, 0]} size={38} color="#FFE2A8" opacity={0.8} />
         <Rig open={open} boxRef={boxRef} />
         <Ready />
