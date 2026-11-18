@@ -15,7 +15,7 @@ export default function WhatsAppFloat({ show }) {
       whileHover={{ scale: 1.08 }}
       whileTap={{ scale: 0.94 }}
       className="group fixed bottom-5 left-5 z-[90] grid h-[3.6rem] w-[3.6rem] place-items-center rounded-full text-wine-3 sm:bottom-7 sm:left-7"
-      style={{ background: "linear-gradient(135deg,#F2E3C4,#C9A36A 55%,#9C7A45)", boxShadow: "0 12px 30px -8px rgba(156,122,69,.8), inset 0 1px 0 rgba(255,255,255,.6)" }}
+      style={{ background: "linear-gradient(135deg,#FFEBB8,#EDB23A 55%,#C48A12)", boxShadow: "0 12px 30px -8px rgba(156,122,69,.8), inset 0 1px 0 rgba(255,255,255,.6)" }}
       data-cursor="hover"
     >
       <span className="absolute inset-0 rounded-full border border-gold" style={{ animation: "wa-pulse 5s ease-out infinite" }} />

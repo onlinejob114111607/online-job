@@ -23,7 +23,7 @@ export default function FinalCta() {
   }, []);
 
   return (
-    <section ref={sec} id="start" className="relative grid min-h-[100svh] place-items-center overflow-hidden text-center" style={{ background: "radial-gradient(90% 70% at 50% 35%, #6B2333 0%, #4A1622 35%, #2E0D15 70%, #1E1816 100%)" }}>
+    <section ref={sec} id="start" className="relative grid min-h-[100svh] place-items-center overflow-hidden text-center" style={{ background: "radial-gradient(90% 70% at 50% 35%, #4C2BB0 0%, #2F1D78 35%, #1A1240 70%, #0F0B1F 100%)" }}>
       <div className="grain absolute inset-0" />
       {webgl ? (
         <Suspense fallback={null}>

@@ -12,7 +12,7 @@ export default function Footer() {
   ];
   return (
     <footer className="relative bg-coal pb-28 pt-20 text-ivory/80 sm:pb-12">
-      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, #9C7A45, #F2E3C4, #C9A36A, transparent)", backgroundSize: "200% 100%", animation: "line-run 8s linear infinite" }} />
+      <div className="absolute inset-x-0 top-0 h-px" style={{ background: "linear-gradient(90deg, transparent, #C48A12, #FFEBB8, #EDB23A, transparent)", backgroundSize: "200% 100%", animation: "line-run 8s linear infinite" }} />
       <div className="container-lux grid gap-14 md:grid-cols-[1.3fr_1fr_1fr]">
         <div>
           <a href="#top" onClick={(e) => (e.preventDefault(), scrollToEl("#top"))} className="inline-block" data-cursor="hover">

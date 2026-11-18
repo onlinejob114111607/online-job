@@ -3,7 +3,7 @@ import * as THREE from "three";
 // ذهب مصقول بانعكاسات
 export const goldMaterial = (rough = 0.16) =>
   new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color("#E3C07F"),
+    color: new THREE.Color("#F7C75A"),
     metalness: 1,
     roughness: rough,
     clearcoat: 0.4,
@@ -14,12 +14,12 @@ export const goldMaterial = (rough = 0.16) =>
 // ساتان عنابي للعلبة
 export const satinWine = () =>
   new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color("#5A1E2B"),
+    color: new THREE.Color("#3B2496"),
     roughness: 0.42,
     metalness: 0.05,
     sheen: 1,
     sheenRoughness: 0.35,
-    sheenColor: new THREE.Color("#E6CC9A"),
+    sheenColor: new THREE.Color("#FFD677"),
     clearcoat: 0.35,
     clearcoatRoughness: 0.3,
     envMapIntensity: 0.9,
