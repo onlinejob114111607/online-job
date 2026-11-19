@@ -6,7 +6,7 @@ import { SITE, STATUSES, WEEK_START } from "../config";
 import { loadSiteContent } from "../siteContent";
 import { addDays, copyText, endOfDay, fmtDateTime, fmtDay, fromInputDate, startOfDay, startOfWeek, toInputDate, waLink } from "../utils";
 import { WaIcon } from "../components/Icons";
-import { useAdmin } from "./hooks";
+import { runCommand, useAdmin, useDocData } from "./hooks";
 import { Empty, HBars, Kpi, Modal, Panel, SubTabs, Tag, WorkerOff } from "./ui";
 import Tracking from "./Tracking";
 
@@ -53,6 +53,20 @@ const WELCOME = {
 
 export default function Registrations() {
   const { toast } = useAdmin();
+  const waJob = useDocData("jobs/wa_check");
+  const [checking, setChecking] = useState(false);
+  async function checkAllPhones() {
+    if (!confirm("نفحص كل أرقام 970/972 بكل التسجيلات (حتى القديمة) على واتساب؟\nبياخد ثانية ونص لكل رقم، والعامل لازم يكون شغّال.")) return;
+    setChecking(true);
+    try {
+      const r = await runCommand("wa", "wa_check_phones", {}, { timeout: 60_000 });
+      toast(r?.queued ? `بلّش فحص ${r.queued} رقم — التقدّم بيطلع فوق الجدول` : "كل الأرقام انفحصت قبل ✓", "ok", 4500);
+    } catch (e) {
+      toast(e.message || "صار خطأ", "bad");
+    } finally {
+      setChecking(false);
+    }
+  }
   const [preset, setPreset] = useState("week");
   const [from, setFrom] = useState(() => toInputDate(getPreset("week")[0]));
   const [to, setTo] = useState(() => toInputDate(getPreset("week")[1]));
@@ -295,6 +309,9 @@ export default function Registrations() {
               ))}
             </select>
             <div className="toolbar-actions">
+              <button className="btn small" onClick={checkAllPhones} disabled={checking || waJob?.running} title="بيفحص كل أرقام 970/972 على واتساب ويعرف المقدمة الصح">
+                {waJob?.running ? `📞 جاري الفحص ${waJob.done}/${waJob.total}` : checking ? "جاري..." : "📞 افحص كل الأرقام"}
+              </button>
               <button className="btn primary small" onClick={exportExcel} disabled={!filtered.length}>
                 ⬇ Excel
               </button>
@@ -303,6 +320,11 @@ export default function Registrations() {
               </button>
             </div>
           </div>
+          {waJob?.running && waJob.total > 1 && (
+            <p className="small-text">
+              📞 فحص أرقام الواتساب: {waJob.done}/{waJob.total} · 🔁 {waJob.wrong} بمقدمة غلط · ❌ {waJob.none} مش على واتساب
+            </p>
+          )}
 
           <div className="sel-bar">
             <span className="muted count-line">
