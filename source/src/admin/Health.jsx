@@ -2,6 +2,7 @@
 //  صحة النظام: العمّال، الحسابات، الحصة، الطوابير، التحديث
 // ============================================================
 import { useEffect, useState } from "react";
+import { SUPABASE } from "../config"; // على Supabase ما في حصة يومية زي Firebase
 import { collection, getCountFromServer, query, where } from "firebase/firestore";
 import { db } from "../firebase";
 import { fmtAgo, toMs } from "../utils";
@@ -87,9 +88,9 @@ export default function Health() {
               {w[k].errors ? ` · ${w[k].errors} خطأ اتصال من التشغيل` : ""}
             </Row>
           ))}
-          <Row ok={!quotaToday} title="حصة Firebase اليومية">
+          {!SUPABASE.active && <Row ok={!quotaToday} title="حصة Firebase اليومية">
             {quotaToday ? "خلصت اليوم مرة على الأقل — بترجع الساعة 10 الصبح (مصر). الحل الدائم: خطة Blaze (بتدفع بس لو تجاوزت المجاني)." : "تمام — ما خلصت اليوم"}
-          </Row>
+          </Row>}
           <Row ok={waAccounts.length > 0 && !waOff.length} warn={waOpen > 0 && waOff.length > 0} title={`أرقام الواتساب (${waOpen}/${waAccounts.length} متصل)`}>
             {waOff.length ? `مش متصل: ${waOff.map((a) => a.name).join("، ")}` : waAccounts.length ? "كلهم متصلين" : "ما في أرقام"}
             {paused.length ? ` · ⏸ واقف نشر لحمايته: ${paused.map((a) => a.name).join("، ")}` : ""}
