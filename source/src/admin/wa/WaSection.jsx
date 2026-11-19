@@ -10,6 +10,7 @@ import PostForm from "./PostForm";
 import Posts from "./Posts";
 import Performance from "./Performance";
 import Templates from "./Templates";
+import AutoPost from "./AutoPost";
 
 export default function WaSection() {
   const { waAccounts, workers } = useAdmin();
@@ -48,6 +49,7 @@ export default function WaSection() {
         tabs={[
           ["post", "نشر"],
           ["posts", "المنشورات", active],
+          ["auto", "النشر الآلي"],
           ["groups", "المجموعات"],
           ["perf", "الأداء"],
           ["templates", "القوالب"],
@@ -106,6 +108,7 @@ export default function WaSection() {
           }}
         />
       )}
+      {tab === "auto" && <AutoPost />}
       {tab === "groups" && acc && <Groups acc={acc} groups={sortedGroups} />}
       {tab === "perf" && acc && <Performance acc={acc} posts={posts} groups={groups} />}
       {tab === "templates" && (

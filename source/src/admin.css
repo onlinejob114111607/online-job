@@ -974,3 +974,9 @@ a.btn {
 .hour-strip { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; min-width: 220px; direction: ltr; }
 .hour-strip i { height: 16px; background: #6366f1; border-radius: 3px; }
 .hour-strip i.best { background: #059669; outline: 2px solid #065f46; }
+
+/* ===== النشر الآلي ===== */
+.auto-checks { display: grid; gap: 6px; max-height: 320px; overflow: auto; padding: 4px 2px; }
+.auto-checks .check-line { align-items: flex-start; }
+.auto-list { display: grid; gap: 12px; }
+.auto-item { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line, rgba(255,255,255,.1)); border-radius: 12px; }

@@ -449,10 +449,14 @@ function WelcomeModal({ rows, site, onClose, onDone }) {
   const def = usable.find((a) => a.id === app.welcomeAccountId) || usable.find((a) => a.state === "open") || usable[0];
   const [accId, setAccId] = useState(def?.id || "");
   const [text, setText] = useState(site.waGreeting || SITE.waGreeting);
-  const [skipSent, setSkipSent] = useState(true);
+  // إنت حددت الأرقام بإيدك ← بينبعتلهم كلهم (حتى لو وصلهم ترحيب قبل)، إلا إذا علّمت "تخطّى"
+  const [skipSent, setSkipSent] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const targets = rows.filter((r) => !(skipSent && r.welcome?.status === "sent") && r.welcome?.status !== "queued");
+  // اللي بالطابور من أقل من نص ساعة منتخطاه (عشان ما يوصله مرتين ورا بعض)
+  const queuedNow = (r) => r.welcome?.status === "queued" && Date.now() - (r.welcome?.at?.toMillis?.() || 0) < 30 * 60_000;
+  const targets = rows.filter((r) => !(skipSent && r.welcome?.status === "sent") && !queuedNow(r));
+  const resend = targets.filter((r) => r.welcome?.status === "sent").length;
   const acc = waAccounts.find((a) => a.id === accId);
 
   async function send() {
@@ -524,6 +528,7 @@ function WelcomeModal({ rows, site, onClose, onDone }) {
           <input type="checkbox" checked={skipSent} onChange={(e) => setSkipSent(e.target.checked)} /> تخطّى اللي وصلهم ترحيب قبل
         </label>
       )}
+      {resend > 0 && <p className="small-text">🔁 {resend} منهم وصلهم ترحيب قبل، ورح يوصلهم مرة تانية.</p>}
       <p className="small-text muted">
         الرسائل ما بتنبعت إلا لما تضغط إرسال. بتنبعت وحدة وحدة بفاصل 20–45 ثانية، والحالة بتتحول لـ "تم التواصل" تلقائياً.
       </p>
