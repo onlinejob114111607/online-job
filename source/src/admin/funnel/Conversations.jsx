@@ -134,7 +134,7 @@ export function ConvModal({ c, cfg, day, onClose }) {
             خطوة {si + 1}: {cfg.steps[si].label} — مستني: {WAIT[cfg.steps[si].waitFor]}
           </span>
         )}
-        <a className="btn small wa-solid" href={waLink(c.phone)} target="_blank" rel="noreferrer">
+        <a className="btn small wa-solid" href={waLink(c.waPhone || c.phone)} target="_blank" rel="noreferrer">
           فتح بواتسابي
         </a>
       </div>

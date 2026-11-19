@@ -97,7 +97,7 @@ export function NowPage({ rows, loading, cfg, run, setTab, setDay, today }) {
                 <a className="btn small" href={`tel:+${x.phone}`}>
                   اتصال
                 </a>
-                <a className="btn small wa-solid" href={waLink(x.phone)} target="_blank" rel="noreferrer">
+                <a className="btn small wa-solid" href={waLink(x.waPhone || x.phone)} target="_blank" rel="noreferrer">
                   واتساب
                 </a>
               </div>
@@ -110,7 +110,7 @@ export function NowPage({ rows, loading, cfg, run, setTab, setDay, today }) {
         <Panel title={`البوك اليوم (${booked.length}) · لسا ما دخلوا ${notIn.length}`}>
           <div className="now-people">
             {booked.map((c) => (
-              <a key={c.id} className={"now-person" + (c.attended ? " in" : "")} href={waLink(c.phone)} target="_blank" rel="noreferrer">
+              <a key={c.id} className={"now-person" + (c.attended ? " in" : "")} href={waLink(c.waPhone || c.phone)} target="_blank" rel="noreferrer">
                 <span>{c.attended === "prelim" ? "🟡" : c.attended ? "✅" : c.lastInAt > (c.lastOutAt || 0) || c.readAt ? "👀" : "⏳"}</span>
                 {c.name || c.phone}
               </a>

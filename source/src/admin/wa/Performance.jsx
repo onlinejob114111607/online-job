@@ -399,7 +399,7 @@ function Replies({ acc }) {
               </div>
               <div className="conv-last">{r.text || "[صورة/ملف]"}</div>
               {r.phone && (
-                <a className="btn small wa-solid" href={`https://wa.me/${r.phone}`} target="_blank" rel="noreferrer">
+                <a className="btn small wa-solid" href={`https://wa.me/${r.waPhone || r.phone}`} target="_blank" rel="noreferrer">
                   راسله واتساب
                 </a>
               )}
