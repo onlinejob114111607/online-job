@@ -336,6 +336,9 @@ function WaGlobal({ s, set }) {
           <Field label="«بيكتب...» قبل كل رسالة (ثواني)" hint="النص بيضل بخانة الكتابة هالمدة قبل ما ينبعت — زي الإنسان.">
             <input min={0} max={30} {...numIn(s, set, "wa.typingSeconds")} />
           </Field>
+          <Field label="قائمة واتساب بعد الترحيب" hint="أي حدا بيوصله ترحيب (يدوي أو من المتابعة) بينضاف لهالقائمة بواتساب. لازم تكون القائمة معمولة بنفس الاسم على الحساب. فاضي = ما بيضيف لأي قائمة.">
+            <input value={s.wa.welcomeList ?? "FlowUp"} onChange={(e) => set("wa.welcomeList", e.target.value)} placeholder="FlowUp" maxLength={40} />
+          </Field>
         </div>
         <Toggle checked={!!s.wa.mentionAll} onChange={(v) => set("wa.mentionAll", v)} label="منشن الكل (افتراضياً بالنشر)" hint="بيوصل إشعار لكل أعضاء المجموعة، إلا أرقامك (ما بينعملها منشن). بتقدر تشغّله أو تطفيه لكل منشور لحاله من صفحة النشر." />
         <Toggle checked={s.wa.riskThrottle !== false} onChange={(v) => set("wa.riskThrottle", v)} label="مقياس خطر الحظر" hint="من الفشل والتهدئة والانقطاع آخر 24 ساعة. فوق 60/100 الرقم بيخفف نشره للنص لحاله، وفوق 80 بيوقف 6 ساعات." />
