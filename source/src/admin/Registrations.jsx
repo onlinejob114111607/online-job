@@ -360,15 +360,21 @@ export default function Registrations() {
                       <td data-label="الواتساب">
                         <a
                           className="wa-btn"
-                          href={waLink(r.phone, (site.waGreeting || "").replace("{name}", r.name.split(" ")[0]))}
+                          href={waLink(r.waPhone || r.phone, (site.waGreeting || "").replace("{name}", r.name.split(" ")[0]))}
                           target="_blank"
                           rel="noreferrer"
                           title="فتح محادثة من واتسابك"
                           onClick={() => r.status === "new" && changeStatus(r, "contacted")}
                         >
                           <WaIcon size={16} />
-                          <span dir="ltr">+{r.phone}</span>
+                          <span dir="ltr">+{r.waPhone || r.phone}</span>
                         </a>
+                        {r.waPhone && r.waPhone !== r.phone && (
+                          <div className="small-text muted" title={`سجّل بـ +${r.phone}`}>
+                            🔁 واتسابه على +{r.waPhone.slice(0, 3)} (سجّل بـ +{r.phone.slice(0, 3)})
+                          </div>
+                        )}
+                        {r.waChecked && r.waPhone === null && <div className="small-text" style={{ color: "var(--bad)" }}>مش على واتساب (لا 970 ولا 972)</div>}
                       </td>
                       <td data-label="المكان">
                         {r.city}، {r.country}

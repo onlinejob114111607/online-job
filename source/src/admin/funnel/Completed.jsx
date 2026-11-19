@@ -49,7 +49,7 @@ export function Completed({ rows, all, cfg, day, run }) {
                 <div key={x.phone} className="call-row">
                   <span>{x.hot ? "🟢" : "⚪"} {x.name}</span>
                   <a className="btn small" href={`tel:+${x.phone}`}>اتصال</a>
-                  <a className="btn small wa-solid" href={waLink(x.phone)} target="_blank" rel="noreferrer">
+                  <a className="btn small wa-solid" href={waLink(x.waPhone || x.phone)} target="_blank" rel="noreferrer">
                     واتساب
                   </a>
                 </div>
@@ -82,7 +82,7 @@ export function Completed({ rows, all, cfg, day, run }) {
                     </div>
                   </td>
                   <td data-label="الواتساب">
-                    <a className="wa-btn" href={waLink(c.phone)} target="_blank" rel="noreferrer">
+                    <a className="wa-btn" href={waLink(c.waPhone || c.phone)} target="_blank" rel="noreferrer">
                       <span dir="ltr">+{c.phone}</span>
                     </a>
                   </td>
