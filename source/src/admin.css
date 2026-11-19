@@ -980,3 +980,7 @@ a.btn {
 .auto-checks .check-line { align-items: flex-start; }
 .auto-list { display: grid; gap: 12px; }
 .auto-item { display: grid; gap: 6px; padding: 12px; border: 1px solid var(--line, rgba(255,255,255,.1)); border-radius: 12px; }
+.auto-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.auto-head .toggle { flex-shrink: 0; }
+.auto-edit { display: grid; gap: 10px; padding-top: 10px; border-top: 1px dashed var(--line, rgba(255,255,255,.12)); }
+.auto-item > .btn.small { justify-self: start; }
