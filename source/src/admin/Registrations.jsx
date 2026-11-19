@@ -117,6 +117,12 @@ export default function Registrations() {
     return rows.filter((r) => {
       if (statusF === "_nowelcome") {
         if (r.welcome?.status === "sent") return false;
+      } else if (statusF === "_wrongprefix") {
+        if (!(r.waPhone && r.waPhone !== r.phone)) return false;
+      } else if (statusF === "_nowa") {
+        if (!(r.waChecked && r.waPhone === null)) return false;
+      } else if (statusF === "_waissue") {
+        if (!((r.waPhone && r.waPhone !== r.phone) || (r.waChecked && r.waPhone === null))) return false;
       } else if (statusF && r.status !== statusF) return false;
       if (refF && (r.ref || "direct") !== refF) return false;
       if (!s) return true;
@@ -125,6 +131,10 @@ export default function Registrations() {
   }, [rows, search, statusF, refF]);
 
   const stats = useMemo(() => buildStats(rows, from, to), [rows, from, to]);
+  const waIssues = useMemo(
+    () => ({ wrong: rows.filter((r) => r.waPhone && r.waPhone !== r.phone).length, none: rows.filter((r) => r.waChecked && r.waPhone === null).length }),
+    [rows]
+  );
   const refs = useMemo(() => [...new Set(rows.map((r) => r.ref || "direct"))].sort(), [rows]);
 
   async function changeStatus(row, status) {
@@ -269,6 +279,9 @@ export default function Registrations() {
             <select value={statusF} onChange={(e) => setStatusF(e.target.value)}>
               <option value="">كل الحالات</option>
               <option value="_nowelcome">ما وصلهم ترحيب</option>
+              <option value="_waissue">⚠️ مشاكل رقم الواتساب ({waIssues.wrong + waIssues.none})</option>
+              <option value="_wrongprefix">🔁 مسجّل بمقدمة غلط 970/972 ({waIssues.wrong})</option>
+              <option value="_nowa">❌ مش على واتساب ({waIssues.none})</option>
               {STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
