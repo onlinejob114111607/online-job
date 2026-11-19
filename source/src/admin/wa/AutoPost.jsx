@@ -4,16 +4,159 @@ import { db } from "../../firebase";
 import { useAdmin, useDocData, useQuery } from "../hooks";
 import { Empty, Field, Panel, Progress, Tag, Toggle } from "../ui";
 
-// النشر الآلي على مجموعات الواتساب: كل حساب بيمرق على كل مجموعاته مرة باليوم بين البداية والنهاية،
-// والعامل بيقسم الوقت على عدد المجموعات، والقوالب بتتبدل وحدة ورا التانية
-const DEF = { enabled: false, accounts: [], templateIds: [], mentionAll: false, start: "08:00", end: "20:00" };
+// النشر الآلي على مجموعات الواتساب — كل حساب إله إعداداته لحاله:
+// تشغيل/إيقاف، القوالب اللي بيبدّل بينها، المنشن، وساعة البداية والنهاية.
+// الحساب بيمرق على كل مجموعاته مرة باليوم، والفاصل = الوقت ÷ عدد المجموعات.
+const ACC = { enabled: false, templateIds: [], mentionAll: false, start: "08:00", end: "20:00" };
 const mins = (hm) => {
   const [h, m] = String(hm || "").split(":").map(Number);
   return (h || 0) * 60 + (m || 0);
 };
-const fmtGap = (m) => (m >= 60 ? `${Math.floor(m / 60)} س ${m % 60 ? `${m % 60} د` : ""}` : `${Math.max(1, m)} د`);
+const fmtGap = (m) => (m >= 60 ? `${Math.floor(m / 60)} س${m % 60 ? ` ${m % 60} د` : ""}` : `${Math.max(1, m)} د`);
 const clock = (t) => (t ? new Date(t).toLocaleTimeString("ar-EG", { hour: "numeric", minute: "2-digit" }) : "—");
 const today = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo" }).format(new Date());
+
+// الإعدادات المحفوظة لكل حساب (وبتحوّل الشكل القديم: إعداد واحد لكل الحسابات)
+function perFrom(saved, ids) {
+  const per = { ...(saved?.per || {}) };
+  if (!saved?.per && saved?.accounts?.length) {
+    for (const id of ids) {
+      per[id] = {
+        ...ACC,
+        enabled: !!saved.enabled && saved.accounts.includes(id),
+        templateIds: saved.accounts.includes(id) ? saved.templateIds || [] : [],
+        mentionAll: !!saved.mentionAll,
+        start: saved.start || ACC.start,
+        end: saved.end || ACC.end,
+      };
+    }
+  }
+  return per;
+}
+
+function AccountCard({ acc, cfg, state, groupsCount, tpls, onSave }) {
+  const [f, setF] = useState(cfg);
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setF(cfg), [JSON.stringify(cfg)]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const set = (patch) => setF((x) => ({ ...x, ...patch }));
+  const toggleTpl = (id) => set({ templateIds: f.templateIds.includes(id) ? f.templateIds.filter((x) => x !== id) : [...f.templateIds, id] });
+  const win = mins(f.end) - mins(f.start);
+  const dirty = JSON.stringify(f) !== JSON.stringify(cfg);
+  const live = state && state.day === today();
+  const total = live ? state.total || groupsCount : groupsCount;
+  const done = live ? (state.done || []).length : 0;
+  const usedTpls = tpls.filter((t) => cfg.templateIds.includes(t.id));
+
+  async function save(patch = {}) {
+    const next = { ...f, ...patch };
+    if (next.enabled && !next.templateIds.length) {
+      setOpen(true);
+      return alert("اختار قالب واحد على الأقل لهالحساب");
+    }
+    if (mins(next.end) <= mins(next.start)) return alert("ساعة النهاية لازم تكون بعد ساعة البداية");
+    setBusy(true);
+    const ok = await onSave(acc.id, next);
+    setBusy(false);
+    if (ok) setF(next);
+  }
+
+  return (
+    <div className="auto-item">
+      <div className="auto-head">
+        <div>
+          <b>{acc.name}</b> {acc.phone && <span className="muted small-text">(+{acc.phone})</span>}
+          <div className="muted small-text">
+            {groupsCount} مجموعة{groupsCount > 0 && win > 0 ? ` · وحدة كل ~${fmtGap(Math.round(win / groupsCount))}` : ""} · {cfg.start}–{cfg.end}
+          </div>
+        </div>
+        <Toggle checked={cfg.enabled} onChange={(v) => save({ enabled: v })} label={cfg.enabled ? "شغّال" : "واقف"} />
+      </div>
+
+      <div className="small-text">
+        {usedTpls.length ? (
+          <>
+            📝 القوالب: {usedTpls.map((t) => t.title).join(" ← ")}
+            {cfg.mentionAll && " · 📣 منشن للكل"}
+          </>
+        ) : (
+          <span className="muted">ما في قوالب مختارة لهالحساب</span>
+        )}
+      </div>
+
+      {cfg.enabled && (
+        <>
+          <Progress
+            parts={[
+              [((live ? state.sent || 0 : 0) / Math.max(1, total)) * 100, "s"],
+              [((live ? (state.failed || 0) + (state.skipped || 0) : 0) / Math.max(1, total)) * 100, "f"],
+            ]}
+          />
+          <p className="small-text muted">
+            {live ? (
+              <>
+                ✅ {state.sent || 0} · ❌ {state.failed || 0}
+                {state.skipped ? ` · ⏭ ${state.skipped}` : ""} · ⏳ {Math.max(0, total - done)} باقي من {total}
+                {state.lastAt ? ` · آخر نشر ${clock(state.lastAt)}${state.lastGroup ? ` ← ${state.lastGroup}` : ""}` : ""}
+                {state.next && state.next > Date.now() && done < total ? ` · الجاي ~${clock(state.next)}` : ""}
+              </>
+            ) : (
+              `ما بلّش اليوم لسا (بيبلّش الساعة ${cfg.start})`
+            )}
+          </p>
+          {live && state.note && <p className="small-text">ℹ️ {state.note}</p>}
+          {live && state.error && <p className="small-text" style={{ color: "var(--bad)" }}>❌ {state.error}</p>}
+        </>
+      )}
+
+      <button className="btn small" onClick={() => setOpen((x) => !x)}>
+        {open ? "▲ سكّر الإعدادات" : "⚙️ إعدادات هالحساب"}
+      </button>
+
+      {open && (
+        <div className="auto-edit">
+          <div className="grid-2col">
+            <Field label="يبلّش الساعة">
+              <input type="time" value={f.start} onChange={(e) => set({ start: e.target.value })} />
+            </Field>
+            <Field label="يوقف الساعة">
+              <input type="time" value={f.end} onChange={(e) => set({ end: e.target.value })} />
+            </Field>
+          </div>
+          <Field label="القوالب" hint="بيستعملها بالدور حسب الرقم جنب كل قالب (ترتيب ما علّمتهم): المجموعة الأولى القالب 1، التانية القالب 2...">
+            {!tpls.length ? (
+              <Empty>ما في قوالب لسا، اعمل قوالب من تبويب «القوالب»</Empty>
+            ) : (
+              <div className="auto-checks">
+                {tpls.map((t) => (
+                  <label key={t.id} className="check-line">
+                    <input type="checkbox" checked={f.templateIds.includes(t.id)} onChange={() => toggleTpl(t.id)} />
+                    <span>
+                      {f.templateIds.includes(t.id) && <Tag kind="ok">{f.templateIds.indexOf(t.id) + 1}</Tag>} <b>{t.title}</b>{" "}
+                      <span className="muted small-text">— {String(t.text || "").slice(0, 60)}…</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </Field>
+          <Toggle checked={f.mentionAll} onChange={(v) => set({ mentionAll: v })} label="منشن للكل" hint="منشن لكل أعضاء المجموعة مع كل منشور (ما عدا أرقامك)." />
+          <div className="btn-row">
+            <button className="btn primary small" disabled={busy || !dirty} onClick={() => save()}>
+              {busy ? "جاري..." : "حفظ"}
+            </button>
+            {dirty && (
+              <button className="btn small" onClick={() => setF(cfg)}>
+                تراجع
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function AutoPost() {
   const { waAccounts, toast } = useAdmin();
@@ -21,163 +164,42 @@ export default function AutoPost() {
   const [tpls] = useQuery(() => query(collection(db, "templates"), orderBy("createdAt", "desc")), []);
   const [states] = useQuery(() => collection(db, "wa_auto"), []);
   const [groups] = useQuery(() => collection(db, "wa_groups"), []);
-  const [f, setF] = useState(null);
-  const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    if (saved !== undefined && !f) setF({ ...DEF, ...(saved || {}) });
-  }, [saved, f]);
-  if (!f) return <div className="page muted">جاري التحميل…</div>;
-
-  const set = (patch) => setF((x) => ({ ...x, ...patch }));
-  const toggleIn = (key, id) => set({ [key]: f[key].includes(id) ? f[key].filter((x) => x !== id) : [...f[key], id] });
-  const win = mins(f.end) - mins(f.start);
+  if (saved === undefined) return <div className="page muted">جاري التحميل…</div>;
+  const ids = waAccounts.map((a) => a.id);
+  const per = perFrom(saved, ids);
   const groupsOf = (id) => groups.filter((g) => g.accountId === id && g.status === "joined" && g.enabled !== false && g.jid).length;
-  const dirty = JSON.stringify({ ...DEF, ...(saved || {}), updatedAt: null }) !== JSON.stringify({ ...f, updatedAt: null });
+  const on = waAccounts.filter((a) => per[a.id]?.enabled).length;
 
-  async function save(patch = {}) {
-    const next = { ...f, ...patch };
-    if (next.enabled) {
-      if (!next.accounts.length) return toast("اختار حساب واحد على الأقل", "bad");
-      if (!next.templateIds.length) return toast("اختار قالب واحد على الأقل", "bad");
-      if (mins(next.end) <= mins(next.start)) return toast("ساعة النهاية لازم تكون بعد ساعة البداية", "bad");
-    }
-    setBusy(true);
+  async function saveAcc(id, cfg) {
     try {
-      const { updatedAt, ...clean } = next;
-      await setDoc(doc(db, "settings", "waAuto"), { ...clean, updatedAt: serverTimestamp() });
-      setF(next);
-      toast(next.enabled ? "النشر الآلي شغّال ✓" : "انحفظ ✓", "ok");
+      // بنحفظ كل الحسابات من النسخة المحفوظة + الحساب اللي تعدّل بس
+      await setDoc(doc(db, "settings", "waAuto"), { per: { ...per, [id]: { ...ACC, ...cfg } }, updatedAt: serverTimestamp() });
+      toast(cfg.enabled ? "انحفظ — الحساب شغّال ✓" : "انحفظ ✓", "ok");
+      return true;
     } catch (e) {
       console.error(e);
       toast("صار خطأ بالحفظ", "bad");
-    } finally {
-      setBusy(false);
+      return false;
     }
   }
 
   return (
     <div className="page">
-      <Panel
-        title="النشر الآلي على المجموعات"
-        actions={
-          <Tag kind={saved?.enabled ? "ok" : ""}>{saved?.enabled ? "🟢 شغّال" : "⚪ واقف"}</Tag>
-        }
-      >
+      <Panel title="النشر الآلي على المجموعات" actions={<Tag kind={on ? "ok" : ""}>{on ? `🟢 ${on} حساب شغّال` : "⚪ كله واقف"}</Tag>}>
         <p className="small-text muted">
-          كل حساب بتختاره بينشر على <b>كل مجموعاته</b>، مجموعة وحدة كل فترة، من ساعة البداية لساعة النهاية. الفترة بتنحسب لحالها: الوقت ÷ عدد المجموعات
-          (مثلاً 12 ساعة و72 مجموعة = مجموعة كل 10 دقايق). القوالب بتتبدل وحدة ورا التانية. وكل حماية الرقم (الحد اليومي وحد الساعة والإيقاف المؤقت) بتضل شغالة.
+          كل حساب إله إعداداته لحاله. الحساب الشغّال بينشر على <b>كل مجموعاته</b> مرة باليوم، مجموعة ورا مجموعة بين ساعة البداية والنهاية. الفاصل بينحسب لحاله
+          (الوقت ÷ عدد المجموعات)، والقوالب بتتبدّل بالدور. وحماية الرقم (الحد اليومي وحد الساعة والإيقاف المؤقت) بتضل شغالة.
         </p>
-
-        <Toggle checked={f.enabled} onChange={(v) => set({ enabled: v })} label="تشغيل النشر الآلي" />
-
-        <div className="grid-2col">
-          <Field label="يبلّش الساعة">
-            <input type="time" value={f.start} onChange={(e) => set({ start: e.target.value })} />
-          </Field>
-          <Field label="يوقف الساعة">
-            <input type="time" value={f.end} onChange={(e) => set({ end: e.target.value })} />
-          </Field>
-        </div>
-
-        <Field label="الحسابات" hint="كل حساب بينشر على مجموعاته هو، والفترة بتنحسب لكل حساب لحاله.">
-          {!waAccounts.length ? (
-            <Empty>ما في حسابات واتساب</Empty>
-          ) : (
-            <div className="auto-checks">
-              {waAccounts.map((a) => {
-                const n = groupsOf(a.id);
-                return (
-                  <label key={a.id} className="check-line">
-                    <input type="checkbox" checked={f.accounts.includes(a.id)} onChange={() => toggleIn("accounts", a.id)} />
-                    <span>
-                      {a.name} {a.phone ? `(+${a.phone})` : ""} · <span className="muted">{n} مجموعة</span>
-                      {n > 0 && win > 0 && <span className="muted"> · وحدة كل ~{fmtGap(Math.round(win / n))}</span>}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          )}
-        </Field>
-
-        <Field label="القوالب" hint="بيستعملها بالدور: المجموعة الأولى القالب الأول، التانية التاني، وهيك. ضيف أو عدّل القوالب من تبويب القوالب.">
-          {!tpls.length ? (
-            <Empty>ما في قوالب لسا، اعمل قوالب من تبويب «القوالب»</Empty>
-          ) : (
-            <div className="auto-checks">
-              {tpls.map((t) => (
-                <label key={t.id} className="check-line">
-                  <input type="checkbox" checked={f.templateIds.includes(t.id)} onChange={() => toggleIn("templateIds", t.id)} />
-                  <span>
-                    <b>{t.title}</b> <span className="muted small-text">— {String(t.text || "").slice(0, 70)}…</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-        </Field>
-
-        <Toggle checked={f.mentionAll} onChange={(v) => set({ mentionAll: v })} label="منشن للكل" hint="بيعمل منشن لكل أعضاء المجموعة مع كل منشور (ما عدا أرقامك)." />
-
-        <div className="btn-row">
-          <button className="btn primary" disabled={busy || !dirty} onClick={() => save()}>
-            {busy ? "جاري..." : "حفظ"}
-          </button>
-          {saved?.enabled && (
-            <button className="btn" disabled={busy} onClick={() => confirm("توقف النشر الآلي على كل الحسابات؟") && save({ enabled: false })}>
-              ⏹ إيقاف
-            </button>
-          )}
-        </div>
       </Panel>
-
-      {(saved?.accounts || []).length > 0 && (
-        <Panel title="حالة اليوم">
-          <div className="auto-list">
-            {saved.accounts.map((id) => {
-              const a = waAccounts.find((x) => x.id === id);
-              const s = states.find((x) => x.id === id);
-              const live = s && s.day === today();
-              const total = live ? s.total || 0 : groupsOf(id);
-              const done = live ? (s.done || []).length : 0;
-              return (
-                <div key={id} className="auto-item">
-                  <div className="row-gap" style={{ justifyContent: "space-between" }}>
-                    <b>{a?.name || id}</b>
-                    <span className="muted small-text">
-                      {done}/{total} مجموعة
-                    </span>
-                  </div>
-                  <Progress
-                    parts={[
-                      [((live ? s.sent || 0 : 0) / Math.max(1, total)) * 100, "s"],
-                      [((live ? (s.failed || 0) + (s.skipped || 0) : 0) / Math.max(1, total)) * 100, "f"],
-                    ]}
-                  />
-                  {live && (
-                    <p className="small-text">
-                      ✅ {s.sent || 0} انبعت · ❌ {s.failed || 0} فشل{s.skipped ? ` · ⏭ ${s.skipped} تخطّى` : ""} · ⏳ {Math.max(0, total - done)} باقي
-                    </p>
-                  )}
-                  <p className="small-text muted">
-                    {live ? (
-                      <>
-                        آخر نشر: {clock(s.lastAt)} {s.lastGroup ? `← ${s.lastGroup}` : ""} {s.lastTpl ? `(${s.lastTpl})` : ""}
-                        {s.next && s.next > Date.now() && done < total ? ` · الجاي تقريباً ${clock(s.next)}` : ""}
-                        {s.gapMin ? ` · الفاصل ~${fmtGap(s.gapMin)}` : ""}
-                      </>
-                    ) : (
-                      "ما بلّش اليوم لسا"
-                    )}
-                  </p>
-                  {live && s.note && <p className="small-text">ℹ️ {s.note}</p>}
-                  {live && s.error && <p className="small-text" style={{ color: "var(--bad)" }}>❌ {s.error}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </Panel>
+      {!waAccounts.length ? (
+        <Empty>ما في حسابات واتساب</Empty>
+      ) : (
+        <div className="auto-list">
+          {waAccounts.map((a) => (
+            <AccountCard key={a.id} acc={a} cfg={{ ...ACC, ...(per[a.id] || {}) }} state={states.find((x) => x.id === a.id)} groupsCount={groupsOf(a.id)} tpls={tpls} onSave={saveAcc} />
+          ))}
+        </div>
       )}
     </div>
   );
