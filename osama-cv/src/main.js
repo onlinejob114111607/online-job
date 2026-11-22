@@ -44,6 +44,8 @@ function projectArt(key) {
   if (IMG[key]) return `<img src="${IMG[key]}" alt="" loading="lazy" />`;
   if (key === "dash")
     return `<div class="art art-dash"><div class="a-side"><i></i><i></i><i></i><i></i><i></i></div><div class="a-main"><div class="a-row"><b></b><b></b><b></b></div><svg viewBox="0 0 200 70" preserveAspectRatio="none"><path d="M0 60 L30 48 L60 52 L90 30 L120 36 L150 16 L200 22" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0 60 L30 48 L60 52 L90 30 L120 36 L150 16 L200 22 L200 70 L0 70Z" fill="currentColor" opacity=".08"/></svg><div class="a-table"><i></i><i></i><i></i></div></div></div>`;
+  if (key === "store")
+    return `<div class="art art-store"><div class="s-top"><i></i><b>-30%</b></div><div class="s-grid">${[0, 1, 2].map((i) => `<div class="s-card"><span class="s-img">${icon("cart")}</span><i></i><i class="s2"></i><em>${i === 1 ? "00:45:12" : ""}</em></div>`).join("")}</div><div class="s-wa">${icon("wa")}<span></span></div></div>`;
   return `<div class="art art-bot"><div class="bub b1">${icon("wa")}<span></span></div><div class="bub b2"><span></span><span></span></div><div class="bub b3">${icon("chat")}<span></span></div><div class="bot-core">${icon("bot")}</div></div>`;
 }
 
@@ -142,6 +144,18 @@ function render() {
         <div class="stats">
           ${t.about.stats.map(([n, a, b], i) => `<div class="card stat rv" style="--d:${i * 0.08}s"><b>${n}</b><strong>${a}</strong><span>${b}</span></div>`).join("")}
         </div>
+      </div>
+    </section>
+
+    <section id="process" class="sec">
+      <p class="kicker rv">${t.process.kicker}</p>
+      <h2 class="title rv">${t.process.title}</h2>
+      <div class="steps">
+        ${t.process.steps.map(([a, b], i) => `
+          <div class="step rv" style="--d:${i * 0.1}s">
+            <span class="step-n">0${i + 1}</span>
+            <h3>${a}</h3><p>${b}</p>
+          </div>`).join("")}
       </div>
     </section>
 
