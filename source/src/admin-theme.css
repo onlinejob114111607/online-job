@@ -512,3 +512,31 @@ body:has(.login-card) {
   color: var(--danger);
   width: 100%;
 }
+
+/* متابعة المودل: بوكس الطالب القابل للضغط + قائمة المساقات */
+.student-card {
+  width: 100%;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  transition: border-color 0.15s, transform 0.05s;
+}
+.student-card:hover { border-color: var(--brand, #a78bfa); }
+.student-card:active { transform: scale(0.995); }
+.student-card .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.student-card-arrow { color: var(--muted); font-size: 1.4rem; line-height: 1; transform: scaleX(1); }
+.course-list { display: flex; flex-direction: column; gap: 2px; }
+.course-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.course-row:hover { background: rgba(167, 139, 250, 0.06); }
+.course-row input { width: 18px; height: 18px; accent-color: var(--brand, #a78bfa); flex: none; }
+.course-row .course-name { flex: 1; font-weight: 600; }
+.course-row.off .course-name { opacity: 0.5; text-decoration: line-through; }
