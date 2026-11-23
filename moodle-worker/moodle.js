@@ -4,6 +4,7 @@
 // ============================================================
 
 import { request, isCloudflareBlock } from './http.js'
+import { fetchIcal } from './ical.js'
 
 const UA = 'MoodleMobile' // بعض المواقع بتسمح للتطبيق بس
 const TIMEOUT = 30_000
@@ -103,6 +104,9 @@ const LOGIN_ERRORS = {
   restoredaccountresetpassword: 'لازم الطالب يعيد تعيين كلمة السر',
 }
 
+// خدمة الموبايل مسكّرة؟ (وقتها بنروح على الدخول المباشر بالمتصفح)
+const WS_OFF = /enablewsdescription|servicenotavailable|webservicesdisabled|servicerequireskey/i
+
 export async function getToken(base, username, password) {
   const r = await http(`${base}/login/token.php`, {
     method: 'POST',
@@ -112,6 +116,7 @@ export async function getToken(base, username, password) {
   if (!j) throw new MoodleError('bad_response', `رد غريب من المودل (HTTP ${r.status})`)
   if (j.token) return j.token
   const code = j.errorcode || 'login_failed'
+  if (WS_OFF.test(code)) throw new MoodleError('ws_off', 'خدمة تطبيق الموبايل مسكّرة')
   throw new MoodleError(code, LOGIN_ERRORS[code] || j.error || 'فشل تسجيل الدخول')
 }
 
@@ -311,5 +316,35 @@ export async function fetchStudent(base, token, { log = () => {} } = {}) {
     user: { id: info.userid, fullname: info.fullname, siteName: info.sitename },
     courses: courses.map((c) => ({ id: c.id, name: c.fullname || c.shortname })),
     items: [...items.values()].filter((it) => it.title),
+  }
+}
+
+// ---------- الدخول المباشر (بدون خدمات ويب) ----------
+// بيسجّل دخول، بياخد المهام من التقويم، وبيقرأ حالة التسليم والعلامة من صفحات الأنشطة
+export async function fetchStudentWeb(base, username, password, { log = () => {} } = {}) {
+  const web = await import('./web.js')
+  const jar = web.newJar()
+  const now = Date.now()
+  try {
+    const { sesskey } = await web.webLogin(base, username, password, jar.path)
+    const calUrl = await web.discoverCalendarUrl(base, sesskey, jar.path)
+    if (!calUrl) throw new MoodleError('no_calendar', 'دخلت المودل بس ما قدرت أجيب رابط التقويم — بلّغ المطوّر')
+    const cal = await fetchIcal(calUrl)
+    const items = cal.items
+    // حالة التسليم للواجبات والاختبارات القريبة (موعدها خلال 60 يوم أو فات من قريب)
+    const near = (it) => it.due && it.due > now - 10 * 86400_000 && it.due < now + 60 * 86400_000
+    let checked = 0
+    for (const it of items) {
+      if ((it.kind === 'assign' || it.kind === 'quiz') && near(it) && checked < 40) {
+        checked++
+        const s = await web.fetchActivityStatus(base, it, jar.path)
+        if (s.submitted !== undefined && s.submitted !== null) it.submitted = s.submitted
+        if (s.grade) it.grade = s.grade
+      }
+    }
+    log(`دخول مباشر: ${items.length} مهمة، فحصت تسليم ${checked}`)
+    return { user: null, courses: null, items, calendarUrl: calUrl }
+  } finally {
+    jar.dispose()
   }
 }

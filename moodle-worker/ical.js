@@ -83,13 +83,15 @@ export async function fetchIcal(url) {
   const base = new URL(url).origin
   const items = parseIcal(text).map((ev) => {
     const uid = (ev.UID?.value || '').replace(/[^\w.@-]/g, '')
+    const evUrl = ev.URL?.value || ''
     const title = (ev.SUMMARY?.value || '').replace(/\s+(is due|is closing|closes|opens|ends|يستحق|مستحق|مستحقة|يغلق|يُغلق|يفتح|يُفتح|ينتهي|يبدأ|تغلق|تفتح).*$/i, '').trim() || ev.SUMMARY?.value
     return {
       key: `ical-${uid}`,
       kind: guessKind(ev),
       title,
       course: ev.CATEGORIES?.value || '',
-      url: `${base}/calendar/view.php?view=upcoming`,
+      // رابط النشاط نفسه إذا موجود (بيلزم لقراءة حالة التسليم)، وإلا صفحة التقويم
+      url: /\/mod\/\w+\/view\.php/.test(evUrl) ? evUrl : `${base}/calendar/view.php?view=upcoming`,
       due: icalDate(ev.DTSTART), // مودل بيحط موعد التسليم بـ DTSTART
       submitted: null,
     }
