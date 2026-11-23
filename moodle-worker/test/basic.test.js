@@ -105,3 +105,27 @@ test('moodle flow against fake server', async () => {
     srv.close()
   }
 })
+
+// ---------- الدخول المباشر (web) ----------
+import { parseAssign, parseQuiz } from '../web.js'
+
+test('parseAssign: submitted + grade', () => {
+  const html = `<table class="generaltable"><tr><th>حالة التسليم</th><td class="submissionstatussubmitted">تم التسليم للتقييم</td></tr>
+    <tr><th>العلامة</th><td>18 / 20</td></tr></table>`
+  const r = parseAssign(html)
+  assert.equal(r.submitted, true)
+  assert.equal(r.grade, '18 / 20')
+})
+
+test('parseAssign: not submitted', () => {
+  const html = `<table><tr><th>حالة التسليم</th><td class="submissionstatus0">لم يتم تقديم أي محاولة</td></tr>
+    <tr><th>العلامة</th><td>-</td></tr></table>`
+  const r = parseAssign(html)
+  assert.equal(r.submitted, false)
+  assert.equal(r.grade, null)
+})
+
+test('parseQuiz: finished attempt', () => {
+  assert.equal(parseQuiz('<table><tr><th>الحالة</th></tr><tr><td>منتهية</td></tr></table>').submitted, true)
+  assert.equal(parseQuiz('<div>لم تقم بأي محاولة على هذا الاختبار</div>').submitted, false)
+})

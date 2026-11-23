@@ -11,12 +11,13 @@ import { dirname, join } from 'node:path'
 import { createClient } from '@supabase/supabase-js'
 import { createStore, Timestamp } from './supadocs.js'
 import { loadOrCreateKeys, decryptBox } from './crypto.js'
-import { checkSite, getToken, fetchStudent, MoodleError, TASK_KINDS } from './moodle.js'
+import { checkSite, getToken, fetchStudent, fetchStudentWeb, MoodleError, TASK_KINDS } from './moodle.js'
+import { webLogin, newJar } from './web.js'
 import { fetchIcal, checkIcalUrl } from './ical.js'
 import { createNotifier, makeFormat, kindLabel } from './notify.js'
 import { transport } from './http.js'
 
-const VERSION = '1.2.0'
+const VERSION = '1.3.0'
 const DIR = dirname(fileURLToPath(import.meta.url))
 const DATA = join(DIR, 'data')
 
@@ -105,9 +106,12 @@ async function syncStudent(st, { reason = 'دوري' } = {}) {
     }
     let res
     try {
-      res = sec.ical ? await fetchIcal(sec.ical) : await fetchStudent(sec.base, sec.token, { log: (m) => log(`  ${st.data.name}: ${m}`) })
+      const slog = (m) => log(`  ${st.data.name}: ${m}`)
+      if (sec.web) res = await fetchStudentWeb(sec.base, sec.web.u, sec.web.p, { log: slog })
+      else if (sec.ical) res = await fetchIcal(sec.ical)
+      else res = await fetchStudent(sec.base, sec.token, { log: slog })
     } catch (e) {
-      if (e instanceof MoodleError && e.code === 'invalidtoken') {
+      if (e instanceof MoodleError && (e.code === 'invalidtoken' || e.code === 'invalidlogin')) {
         if (st.data.status !== 'relink') {
           await setStudent(st.id, { status: 'relink', statusMsg: e.message, lastError: now() })
           await tg.send(`🔴 <b>${st.data.name}</b>: ${e.message}`)
@@ -274,11 +278,12 @@ const handlers = {
     if (!st) throw new Error('الطالب مش موجود')
     const secret = decryptBox(c.box, keys.privateKey)
     const prev = secrets[st.id]
-    const prevMode = prev ? (prev.ical ? 'ical' : 'password') : null
-    // تغيّرت طريقة الربط (تقويم ⇄ كلمة سر) ← المهام القديمة إلها مفاتيح ثانية، فبنمسحها
-    // وبنبدأ من جديد كأنه أول ربط (رسالة ملخص وحدة بدل سيل تنبيهات "جديد")
+    const prevMode = prev ? (prev.web ? 'web' : prev.ical ? 'ical' : 'password') : null
+    // عيلة المفاتيح: التقويم والدخول المباشر بيستعملوا مفاتيح التقويم (ical-*)،
+    // وخدمة الموبايل بتستعمل مفاتيح ثانية (assign-<id>). لو تغيّرت العيلة بنمسح المهام القديمة.
+    const family = (m) => (m === 'password' ? 'ws' : 'cal')
     const fresh = async (mode) => {
-      if (!prevMode || prevMode === mode) return st.data
+      if (!prevMode || family(prevMode) === family(mode)) return st.data
       const old = await db.query(ITEMS, { filters: [['studentId', '==', st.id]] })
       const ops = old.map((r) => ({ t: 'delete', col: ITEMS, id: r.id }))
       for (let i = 0; i < ops.length; i += 300) await db.write(ops.slice(i, i + 300))
@@ -298,10 +303,39 @@ const handlers = {
         return { items: r.items.length }
       }
       const site = await checkSite(st.data.site)
-      if (site.loginType === 'disabled') throw new MoodleError('disabled', 'الجامعة مسكّرة خدمة تطبيق الموبايل — استعمل رابط التقويم بدل كلمة السر')
-      if (site.loginType !== 'app')
-        throw new MoodleError('sso', `دخول هالجامعة عن طريق ${site.providers.join(' / ') || 'المتصفح'} — كلمة السر ما بتزبط هون، استعمل رابط التقويم`)
-      const token = await getToken(site.base, String(st.data.studentNo).trim(), secret.password)
+      const un = String(st.data.studentNo || '').trim()
+      if (!un) throw new MoodleError('no_user', 'لازم تحط الرقم الجامعي مع كلمة السر')
+      // 1) خدمة الموبايل (أدق وأخف) — وإذا مسكّرة بنروح للدخول المباشر
+      let useWeb = site.loginType !== 'app'
+      let token
+      if (!useWeb) {
+        try {
+          token = await getToken(site.base, un, secret.password)
+        } catch (e) {
+          if (e.code === 'ws_off') useWeb = true
+          else throw e
+        }
+      }
+      if (useWeb) {
+        // 2) الدخول المباشر على المودل (بيتأكد إنه الرقم وكلمة السر صح)
+        const jar = newJar()
+        try {
+          await webLogin(site.base, un, secret.password, jar.path)
+        } catch (e) {
+          if (e.code === 'invalidlogin') throw e
+          if (site.loginType !== 'app')
+            throw new MoodleError('sso', `دخول هالجامعة عن طريق ${site.providers.join(' / ') || 'المتصفح'} — كلمة السر ما بتزبط، استعمل رابط التقويم`)
+          throw e
+        } finally {
+          jar.dispose()
+        }
+        const data = await fresh('web')
+        secrets[st.id] = { base: site.base, web: { u: un, p: secret.password }, linkedAt: Date.now() }
+        saveSecrets()
+        await setStudent(st.id, { status: 'ok', mode: 'web', base: site.base, siteName: site.siteName, statusMsg: null, linkedAt: now() })
+        syncStudent({ id: st.id, data: { ...data, status: 'ok' } }, { reason: 'ربط' }).catch((e) => log('sync', e.message))
+        return { siteName: site.siteName, mode: 'web' }
+      }
       const data = await fresh('password')
       secrets[st.id] = { base: site.base, token, linkedAt: Date.now() }
       saveSecrets()

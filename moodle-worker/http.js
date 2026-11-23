@@ -27,12 +27,13 @@ export class HttpError extends Error {
 
 const MARK = '\n__CURL_META__'
 
-function viaCurl(url, { method, headers, body, timeout }) {
+function viaCurl(url, { method, headers, body, timeout, cookieJar, maxRedirs = 10 }) {
   // الرابط والبيانات بيروحوا عن طريق stdin (ملف إعدادات curl) عشان ما يبينوا بقائمة العمليات
   const q = (s) => '"' + String(s).replace(/["\\]/g, '\\$&') + '"'
   const cfg = [`url = ${q(url)}`, ...Object.entries(headers).map(([k, v]) => `header = ${q(`${k}: ${v}`)}`)]
   if (body !== undefined) cfg.push(`data-binary = ${q(body)}`)
-  const args = ['-sS', '-L', '--compressed', '--max-time', String(Math.round(timeout / 1000)), '-X', method, '-w', `${MARK}%{http_code} %{content_type}`, '-K', '-']
+  if (cookieJar) cfg.push(`cookie = ${q(cookieJar)}`, `cookie-jar = ${q(cookieJar)}`)
+  const args = ['-sS', '-L', '--max-redirs', String(maxRedirs), '--compressed', '--max-time', String(Math.round(timeout / 1000)), '-X', method, '-w', `${MARK}%{http_code} %{content_type}`, '-K', '-']
   return new Promise((resolve, reject) => {
     const p = execFile('curl', args, { maxBuffer: 50 * 1024 * 1024, encoding: 'utf8' }, (err, stdout, stderr) => {
       const i = stdout.lastIndexOf(MARK)
@@ -65,10 +66,12 @@ async function viaFetch(url, { method, headers, body, timeout }) {
 export const isCloudflareBlock = (r) => (r.status === 403 || r.status === 503) && /Just a moment|cf-chl|challenge-platform|cloudflare/i.test(r.text.slice(0, 3000))
 
 // { status, contentType, text }
-export async function request(url, { method = 'GET', headers = {}, body, timeout = 30_000 } = {}) {
-  const opts = { method, headers, body, timeout }
+export async function request(url, { method = 'GET', headers = {}, body, timeout = 30_000, cookieJar } = {}) {
+  const opts = { method, headers, body, timeout, cookieJar }
   if (curlAvailable()) return viaCurl(url, opts)
+  if (cookieJar) throw new HttpError('no_curl', 'تسجيل الدخول بالمتصفح بدّه curl — ثبّته: pkg install curl')
   return viaFetch(url, opts)
 }
 
 export const transport = () => (curlAvailable() ? 'curl' : 'fetch')
+export const hasCurlNow = () => curlAvailable()
