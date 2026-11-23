@@ -16,7 +16,7 @@ import { fetchIcal, checkIcalUrl } from './ical.js'
 import { createNotifier, makeFormat, kindLabel } from './notify.js'
 import { transport } from './http.js'
 
-const VERSION = '1.1.0'
+const VERSION = '1.2.0'
 const DIR = dirname(fileURLToPath(import.meta.url))
 const DATA = join(DIR, 'data')
 
@@ -273,14 +273,28 @@ const handlers = {
     const st = await db.getDoc(STUDENTS, c.studentId)
     if (!st) throw new Error('الطالب مش موجود')
     const secret = decryptBox(c.box, keys.privateKey)
+    const prev = secrets[st.id]
+    const prevMode = prev ? (prev.ical ? 'ical' : 'password') : null
+    // تغيّرت طريقة الربط (تقويم ⇄ كلمة سر) ← المهام القديمة إلها مفاتيح ثانية، فبنمسحها
+    // وبنبدأ من جديد كأنه أول ربط (رسالة ملخص وحدة بدل سيل تنبيهات "جديد")
+    const fresh = async (mode) => {
+      if (!prevMode || prevMode === mode) return st.data
+      const old = await db.query(ITEMS, { filters: [['studentId', '==', st.id]] })
+      const ops = old.map((r) => ({ t: 'delete', col: ITEMS, id: r.id }))
+      for (let i = 0; i < ops.length; i += 300) await db.write(ops.slice(i, i + 300))
+      await setStudent(st.id, { baselineAt: null })
+      log(`↺ ${st.data.name}: تغيّرت طريقة الربط (${prevMode} ← ${mode})، انمسحت ${old.length} مهمة قديمة`)
+      return { ...st.data, baselineAt: null }
+    }
     try {
       if (secret.ical) {
         const url = checkIcalUrl(secret.ical)
         const r = await fetchIcal(url)
+        const data = await fresh('ical')
         secrets[st.id] = { ical: url, linkedAt: Date.now() }
         saveSecrets()
         await setStudent(st.id, { status: 'ok', mode: 'ical', statusMsg: null, linkedAt: now(), base: new URL(url).origin })
-        syncStudent({ id: st.id, data: { ...st.data, status: 'ok' } }, { reason: 'ربط' }).catch((e) => log('sync', e.message))
+        syncStudent({ id: st.id, data: { ...data, status: 'ok' } }, { reason: 'ربط' }).catch((e) => log('sync', e.message))
         return { items: r.items.length }
       }
       const site = await checkSite(st.data.site)
@@ -288,13 +302,16 @@ const handlers = {
       if (site.loginType !== 'app')
         throw new MoodleError('sso', `دخول هالجامعة عن طريق ${site.providers.join(' / ') || 'المتصفح'} — كلمة السر ما بتزبط هون، استعمل رابط التقويم`)
       const token = await getToken(site.base, String(st.data.studentNo).trim(), secret.password)
+      const data = await fresh('password')
       secrets[st.id] = { base: site.base, token, linkedAt: Date.now() }
       saveSecrets()
       await setStudent(st.id, { status: 'ok', mode: 'password', base: site.base, siteName: site.siteName, statusMsg: null, linkedAt: now() })
-      syncStudent({ id: st.id, data: { ...st.data, status: 'ok' } }, { reason: 'ربط' }).catch((e) => log('sync', e.message))
+      syncStudent({ id: st.id, data: { ...data, status: 'ok' } }, { reason: 'ربط' }).catch((e) => log('sync', e.message))
       return { siteName: site.siteName }
     } catch (e) {
-      await setStudent(st.id, { status: e.code === 'sso' || e.code === 'disabled' ? 'sso' : 'error', statusMsg: e.message })
+      // كان مربوط بطريقة ثانية وشغال ← بنرجّعه زي ما كان، بس بنعرض سبب فشل الطريقة الجديدة
+      if (prev) await setStudent(st.id, { status: 'ok', mode: prevMode, statusMsg: `محاولة الربط الأخيرة فشلت: ${e.message}` })
+      else await setStudent(st.id, { status: e.code === 'sso' || e.code === 'disabled' ? 'sso' : 'error', statusMsg: e.message })
       throw e
     } finally {
       secret.password = secret.ical = undefined
