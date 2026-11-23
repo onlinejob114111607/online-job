@@ -3,6 +3,7 @@
 //  الطالب بيجيبه من: التقويم ← استيراد أو تصدير التقويمات ← تصدير ← "الحصول على رابط التقويم"
 // ============================================================
 import { MoodleError } from './moodle.js'
+import { request, isCloudflareBlock } from './http.js'
 
 export function checkIcalUrl(url) {
   let u
@@ -59,32 +60,30 @@ function guessKind(ev) {
   const m = /^mod_(\w+)/.exec(comp)
   if (m) return m[1]
   if (/quiz|اختبار|امتحان|كويز/i.test(t)) return 'quiz'
-  if (/assign|واجب|تكليف|تسليم|due|يستحق/i.test(t)) return 'assign'
+  if (/assign|واجب|تكليف|تسليم|due|يستحق|مستحق/i.test(t)) return 'assign'
   if (/forum|منتدى|نقاش/i.test(t)) return 'forum'
   if (/workshop|مشروع|ورشة/i.test(t)) return 'workshop'
   return 'event'
 }
 
 export async function fetchIcal(url) {
-  const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), 30_000)
-  let text
+  let r
   try {
-    const r = await fetch(checkIcalUrl(url), { signal: ctrl.signal, headers: { 'User-Agent': 'MoodleMobile' } })
-    text = await r.text()
-    if (r.status === 404 || r.status === 403) throw new MoodleError('invalidtoken', 'رابط التقويم ما عاد شغال — خلّي الطالب يطلع رابط جديد')
+    r = await request(checkIcalUrl(url), { headers: { 'User-Agent': 'MoodleMobile', Accept: 'text/calendar,*/*' } })
   } catch (e) {
-    if (e instanceof MoodleError) throw e
-    throw new MoodleError('network', `ما قدرت أفتح رابط التقويم: ${e.cause?.code || e.message}`)
-  } finally {
-    clearTimeout(t)
+    throw new MoodleError('network', `ما قدرت أفتح رابط التقويم: ${e.message}`)
   }
-  if (!/BEGIN:VCALENDAR/.test(text)) throw new MoodleError('invalidtoken', 'رابط التقويم ما رجّع تقويم — ممكن انتهى، خلّي الطالب يطلع رابط جديد')
+  if (isCloudflareBlock(r)) throw new MoodleError('blocked', `حماية Cloudflare بموقع الجامعة رفضت الطلب (HTTP ${r.status}) — تأكد إنه curl مثبّت: pkg install curl`)
+  const text = r.text
+  if (!/BEGIN:VCALENDAR/.test(text)) {
+    if (r.status >= 500 || r.status === 0) throw new MoodleError('network', `موقع الجامعة فيه مشكلة هلأ (HTTP ${r.status}) — رح نحاول كمان شوي`)
+    throw new MoodleError('invalidtoken', `رابط التقويم ما رجّع تقويم (HTTP ${r.status}) — ممكن انتهى، خلّي الطالب يطلع رابط جديد`)
+  }
 
   const base = new URL(url).origin
   const items = parseIcal(text).map((ev) => {
     const uid = (ev.UID?.value || '').replace(/[^\w.@-]/g, '')
-    const title = (ev.SUMMARY?.value || '').replace(/\s+(is due|يستحق|closes|opens|يغلق|يفتح).*$/i, '').trim() || ev.SUMMARY?.value
+    const title = (ev.SUMMARY?.value || '').replace(/\s+(is due|is closing|closes|opens|ends|يستحق|مستحق|مستحقة|يغلق|يُغلق|يفتح|يُفتح|ينتهي|يبدأ|تغلق|تفتح).*$/i, '').trim() || ev.SUMMARY?.value
     return {
       key: `ical-${uid}`,
       kind: guessKind(ev),

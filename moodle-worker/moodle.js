@@ -3,6 +3,8 @@
 //  (login/token.php + webservice/rest/server.php)
 // ============================================================
 
+import { request, isCloudflareBlock } from './http.js'
+
 const UA = 'MoodleMobile' // بعض المواقع بتسمح للتطبيق بس
 const TIMEOUT = 30_000
 
@@ -32,27 +34,23 @@ export function normalizeSite(input) {
 }
 
 async function http(url, { method = 'GET', form, json } = {}) {
-  const ctrl = new AbortController()
-  const t = setTimeout(() => ctrl.abort(), TIMEOUT)
-  try {
-    const headers = { 'User-Agent': UA, Accept: 'application/json' }
-    let body
-    if (form) {
-      headers['Content-Type'] = 'application/x-www-form-urlencoded'
-      body = new URLSearchParams(form).toString()
-    } else if (json !== undefined) {
-      headers['Content-Type'] = 'application/json'
-      body = JSON.stringify(json)
-    }
-    const r = await fetch(url, { method, headers, body, signal: ctrl.signal, redirect: 'follow' })
-    const text = await r.text()
-    return { status: r.status, text }
-  } catch (e) {
-    if (e.name === 'AbortError') throw new MoodleError('timeout', 'موقع المودل ما رد (انتهى الوقت)')
-    throw new MoodleError('network', `ما قدرت أوصل لموقع المودل: ${e.cause?.code || e.message}`)
-  } finally {
-    clearTimeout(t)
+  const headers = { 'User-Agent': UA, Accept: 'application/json' }
+  let body
+  if (form) {
+    headers['Content-Type'] = 'application/x-www-form-urlencoded'
+    body = new URLSearchParams(form).toString()
+  } else if (json !== undefined) {
+    headers['Content-Type'] = 'application/json'
+    body = JSON.stringify(json)
   }
+  let r
+  try {
+    r = await request(url, { method, headers, body, timeout: TIMEOUT })
+  } catch (e) {
+    throw new MoodleError(e.code || 'network', e.message)
+  }
+  if (isCloudflareBlock(r)) throw new MoodleError('blocked', `حماية Cloudflare بموقع الجامعة رفضت الطلب (HTTP ${r.status}) — تأكد إنه curl مثبّت: pkg install curl`)
+  return r
 }
 
 function parseJson(text) {

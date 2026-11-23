@@ -324,7 +324,8 @@ function AddStudent({ worker, online }) {
     } catch (err) {
       toast(err.message, "bad", 7000);
       setF((x) => ({ ...x, password: "" }));
-      // الطالب بيضل بالقائمة بحالة "في مشكلة" وبتقدر تعيد ربطه
+      // الربط فشل ← بنشيل الطالب عشان ما يتكرر لما تحاول مرة ثانية (البيانات بتضل بالفورم)
+      if (ref) await deleteDoc(ref).catch(() => {});
     }
     setBusy("");
   }
@@ -554,7 +555,7 @@ function Setup({ worker, online }) {
         </div>
       </Panel>
       <Panel title="تشغيل العامل على الجوال (Termux)">
-        <ol className="small-text" style={{ lineHeight: 1.9 }}>
+        <ol className="small-text" style={{ lineHeight: 1.9, overflowWrap: "anywhere" }}>
           <li>
             <code dir="ltr">pkg install nodejs git</code> ثم <code dir="ltr">git clone https://github.com/onlinejob114111607/online-job</code>
           </li>
