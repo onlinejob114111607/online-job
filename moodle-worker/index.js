@@ -17,7 +17,7 @@ import { fetchIcal, checkIcalUrl } from './ical.js'
 import { createNotifier, makeFormat, kindLabel } from './notify.js'
 import { transport } from './http.js'
 
-const VERSION = '1.3.0'
+const VERSION = '1.4.0'
 const DIR = dirname(fileURLToPath(import.meta.url))
 const DATA = join(DIR, 'data')
 
@@ -125,6 +125,7 @@ async function syncStudent(st, { reason = 'دوري' } = {}) {
 
     const first = !st.data.baselineAt
     const existing = new Map((await db.query(ITEMS, { filters: [['studentId', '==', st.id]] })).map((r) => [r.id, r.data]))
+    const mutedCourses = new Set(st.data.mutedCourses || [])
     const ops = []
     const fresh = []
     const t = Date.now()
@@ -157,7 +158,7 @@ async function syncStudent(st, { reason = 'دوري' } = {}) {
         const sent = { new: true }
         for (const [k, h] of REMINDERS) if (it.due && it.due - t <= h * 3600_000) sent[k] = true
         ops.push({ t: 'set', col: ITEMS, id, data: { ...base, firstSeen: { __ts: t }, done: false, sent } })
-        if (!first && !(it.due && it.due < t)) fresh.push({ ...base, due: it.due })
+        if (!first && !(it.due && it.due < t) && !mutedCourses.has(base.course)) fresh.push({ ...base, due: it.due })
         continue
       }
       const oldDue = toMs(old.due)
@@ -172,7 +173,7 @@ async function syncStudent(st, { reason = 'دوري' } = {}) {
         const sent = { ...(old.sent || {}) }
         for (const [k, h] of REMINDERS) sent[k] = !!(it.due && it.due - t <= h * 3600_000)
         patch.sent = sent
-        if (it.due && it.due > t && !old.done) {
+        if (it.due && it.due > t && !old.done && !mutedCourses.has(base.course)) {
           await tg.send(`🔁 <b>تغيّر الموعد</b>\n${F.line({ ...base, due: it.due })}\nكان: ${F.date(oldDue)}`, it.url)
         }
       }
@@ -190,7 +191,7 @@ async function syncStudent(st, { reason = 'دوري' } = {}) {
 
     for (let i = 0; i < ops.length; i += 300) await db.write(ops.slice(i, i + 300))
 
-    const upcoming = res.items.filter((it) => it.due && it.due > t && !it.submitted && (TASK_KINDS.has(it.kind) || it.kind === 'event')).length
+    const upcoming = res.items.filter((it) => it.due && it.due > t && !it.submitted && !mutedCourses.has(it.course || '') && (TASK_KINDS.has(it.kind) || it.kind === 'event')).length
     await setStudent(st.id, {
       status: 'ok',
       statusMsg: null,
@@ -226,8 +227,17 @@ const REMINDERS = [
 ]
 const REMINDER_HEAD = { d3: '⏳ تذكير: باقي 3 أيام', d1: '⚠️ تذكير: باقي يوم', h3: '🚨 باقي أقل من 3 ساعات!' }
 
+// خريطة المواد المكتومة لكل طالب
+async function mutedMap() {
+  const m = new Map()
+  for (const s of await db.query(STUDENTS)) m.set(s.id, new Set(s.data.mutedCourses || []))
+  return m
+}
+const itemMuted = (muted, it) => muted.get(it.studentId)?.has(it.course || '')
+
 async function reminders() {
   const t = Date.now()
+  const muted = await mutedMap()
   const rows = await db.query(ITEMS, {
     filters: [
       ['task', '==', true],
@@ -235,7 +245,7 @@ async function reminders() {
     ],
   })
   for (const { id, data: it } of rows) {
-    if (it.done || it.submitted || it.gone) continue
+    if (it.done || it.submitted || it.gone || itemMuted(muted, it)) continue
     const due = toMs(it.due)
     const sent = { ...(it.sent || {}) }
     let fire = null
@@ -255,7 +265,9 @@ async function digest() {
   if (Number(parts.hour) !== CFG.digestHour || lastDigest === day) return
   lastDigest = day
   const t = Date.now()
+  const muted = await mutedMap()
   const rows = (await db.query(ITEMS, { filters: [['task', '==', true], ['due', '>', Timestamp.fromMillis(t)]] }))
+    .filter((r) => !itemMuted(muted, r.data))
     .map((r) => ({ ...r.data, due: toMs(r.data.due) }))
     .filter((it) => !it.done && !it.submitted && !it.gone && it.due < t + 7 * 86400_000)
     .sort((a, b) => a.due - b.due)

@@ -90,7 +90,7 @@ export default function Students() {
         onChange={setTab}
       />
       {tab === "tasks" && <Tasks items={items} loading={itemsLoading} students={students} />}
-      {tab === "students" && <StudentsTab students={students} worker={worker} online={online} />}
+      {tab === "students" && <StudentsTab students={students} items={items} worker={worker} online={online} />}
       {tab === "setup" && <Setup worker={worker} online={online} />}
     </div>
   );
@@ -99,15 +99,103 @@ export default function Students() {
 // ============================================================
 //  المهام
 // ============================================================
+// مجموعة المواد المكتومة لكل طالب (studentId → Set أسماء مواد)
+function useMutedMap(students) {
+  return useMemo(() => {
+    const m = {};
+    for (const s of students) m[s.id] = new Set(s.mutedCourses || []);
+    return m;
+  }, [students]);
+}
+const isMuted = (muted, it) => muted[it.studentId]?.has(it.course || "");
+
+async function toggleItemDone(it, toast) {
+  try {
+    await updateDoc(doc(db, "moodle_items", it.id), { done: !it.done, doneAt: it.done ? null : serverTimestamp() });
+  } catch (e) {
+    toast(e.message, "bad");
+  }
+}
+
+// جدول المهام — مشترك بين تبويب المهام وصفحة الطالب
+function TaskTable({ rows, onToggle, showStudent = true }) {
+  const t = Date.now();
+  return (
+    <div className="table-wrap">
+      <table className="table">
+        <thead>
+          <tr>
+            <th>الموعد</th>
+            {showStudent && <th>الطالب</th>}
+            <th>المهمة</th>
+            <th>الحالة</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((it) => {
+            const [label, icon] = kindOf(it.kind);
+            return (
+              <tr key={it.id} style={it.gone ? { opacity: 0.55 } : undefined}>
+                <td data-label="الموعد">
+                  <b>{fmtDue(it.dueMs)}</b>
+                  {it.dueMs ? (
+                    <div>
+                      <Tag kind={it.done || it.submitted ? "ok" : urgency(it.dueMs)}>{leftText(it.dueMs)}</Tag>
+                    </div>
+                  ) : null}
+                </td>
+                {showStudent && <td data-label="الطالب">{it.student}</td>}
+                <td data-label="المهمة">
+                  <div>
+                    {icon} <span className="muted small-text">{label}</span>{" "}
+                    {it.url ? (
+                      <a href={it.url} target="_blank" rel="noreferrer">
+                        <b>{it.title}</b>
+                      </a>
+                    ) : (
+                      <b>{it.title}</b>
+                    )}
+                  </div>
+                  <div className="small-text muted">
+                    {it.course}
+                    {it.timeLimitMin ? ` · مدة ${it.timeLimitMin} دقيقة` : ""}
+                    {it.opens && toMs(it.opens) > t ? ` · بيفتح ${fmtDue(toMs(it.opens))}` : ""}
+                    {it.gone ? " · انشال من المودل" : ""}
+                  </div>
+                </td>
+                <td data-label="الحالة">
+                  {it.submitted ? <Tag kind="ok">مسلّم</Tag> : it.done ? <Tag kind="ok">خلصت</Tag> : it.task ? <Tag>لسا</Tag> : <Tag kind="info">محتوى</Tag>}
+                  {it.grade ? <div className="small-text">العلامة: {it.grade}</div> : null}
+                </td>
+                <td>
+                  {it.task && !it.submitted && (
+                    <button className="btn small" onClick={() => onToggle(it)}>
+                      {it.done ? "رجّعها" : "✓ خلصت"}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function Tasks({ items, loading, students }) {
   const { toast } = useAdmin();
   const [view, setView] = useState("upcoming");
   const [who, setWho] = useState("");
   const [q, setQ] = useState("");
   const t = Date.now();
+  const muted = useMutedMap(students);
+
+  const visible = useMemo(() => items.filter((it) => !isMuted(muted, it)), [items, muted]);
 
   const rows = useMemo(() => {
-    const list = items.map((it) => ({ ...it, dueMs: toMs(it.due), seenMs: toMs(it.firstSeen) }));
+    const list = visible.map((it) => ({ ...it, dueMs: toMs(it.due), seenMs: toMs(it.firstSeen) }));
     const open = (it) => it.task && !it.done && !it.submitted && !it.gone;
     const pick = {
       upcoming: (it) => open(it) && it.dueMs > t,
@@ -126,22 +214,16 @@ function Tasks({ items, loading, students }) {
         view === "new" ? b.seenMs - a.seenMs : view === "done" || view === "late" ? (b.dueMs || 0) - (a.dueMs || 0) : (a.dueMs || Infinity) - (b.dueMs || Infinity)
       )
       .slice(0, 300);
-  }, [items, view, who, q, t]);
+  }, [visible, view, who, q, t]);
 
-  const open = items.filter((it) => it.task && !it.done && !it.submitted && !it.gone);
+  const open = visible.filter((it) => it.task && !it.done && !it.submitted && !it.gone);
   const due = (it) => toMs(it.due);
   const k24 = open.filter((it) => due(it) > t && due(it) < t + DAY).length;
   const k7 = open.filter((it) => due(it) > t && due(it) < t + 7 * DAY).length;
   const late = open.filter((it) => due(it) && due(it) <= t && due(it) > t - 14 * DAY).length;
-  const fresh = items.filter((it) => t - toMs(it.firstSeen) < DAY).length;
+  const fresh = visible.filter((it) => t - toMs(it.firstSeen) < DAY).length;
 
-  async function toggleDone(it) {
-    try {
-      await updateDoc(doc(db, "moodle_items", it.id), { done: !it.done, doneAt: it.done ? null : serverTimestamp() });
-    } catch (e) {
-      toast(e.message, "bad");
-    }
-  }
+  const toggleDone = (it) => toggleItemDone(it, toast);
 
   return (
     <>
@@ -181,66 +263,7 @@ function Tasks({ items, loading, students }) {
       ) : !rows.length ? (
         <Empty>{items.length ? "ما في إشي هون" : "لسا ما في مهام — ضيف طالب من تبويب «الطلاب»"}</Empty>
       ) : (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>الموعد</th>
-                <th>الطالب</th>
-                <th>المهمة</th>
-                <th>الحالة</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((it) => {
-                const [label, icon] = kindOf(it.kind);
-                return (
-                  <tr key={it.id} style={it.gone ? { opacity: 0.55 } : undefined}>
-                    <td data-label="الموعد">
-                      <b>{fmtDue(it.dueMs)}</b>
-                      {it.dueMs ? (
-                        <div>
-                          <Tag kind={it.done || it.submitted ? "ok" : urgency(it.dueMs)}>{leftText(it.dueMs)}</Tag>
-                        </div>
-                      ) : null}
-                    </td>
-                    <td data-label="الطالب">{it.student}</td>
-                    <td data-label="المهمة">
-                      <div>
-                        {icon} <span className="muted small-text">{label}</span>{" "}
-                        {it.url ? (
-                          <a href={it.url} target="_blank" rel="noreferrer">
-                            <b>{it.title}</b>
-                          </a>
-                        ) : (
-                          <b>{it.title}</b>
-                        )}
-                      </div>
-                      <div className="small-text muted">
-                        {it.course}
-                        {it.timeLimitMin ? ` · مدة ${it.timeLimitMin} دقيقة` : ""}
-                        {it.opens && toMs(it.opens) > t ? ` · بيفتح ${fmtDue(toMs(it.opens))}` : ""}
-                        {it.gone ? " · انشال من المودل" : ""}
-                      </div>
-                    </td>
-                    <td data-label="الحالة">
-                      {it.submitted ? <Tag kind="ok">مسلّم</Tag> : it.done ? <Tag kind="ok">خلصت</Tag> : it.task ? <Tag>لسا</Tag> : <Tag kind="info">محتوى</Tag>}
-                      {it.grade ? <div className="small-text">العلامة: {it.grade}</div> : null}
-                    </td>
-                    <td>
-                      {it.task && !it.submitted && (
-                        <button className="btn small" onClick={() => toggleDone(it)}>
-                          {it.done ? "رجّعها" : "✓ خلصت"}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <TaskTable rows={rows} onToggle={toggleDone} />
       )}
     </>
   );
@@ -249,10 +272,40 @@ function Tasks({ items, loading, students }) {
 // ============================================================
 //  الطلاب
 // ============================================================
-function StudentsTab({ students, worker, online }) {
+function StudentsTab({ students, items, worker, online }) {
   const { toast } = useAdmin();
   const [relink, setRelink] = useState(null);
+  const [openId, setOpenId] = useState(null);
   const sorted = [...students].sort((a, b) => String(a.name).localeCompare(String(b.name), "ar"));
+  const openStudent = students.find((s) => s.id === openId);
+
+  // عدّ المهام القادمة لكل طالب (بدون المواد المكتومة) — من المهام الفعلية
+  const counts = useMemo(() => {
+    const t = Date.now();
+    const m = {};
+    for (const it of items) {
+      if (!it.task || it.done || it.submitted || it.gone) continue;
+      const muted = (students.find((s) => s.id === it.studentId)?.mutedCourses || []).includes(it.course || "");
+      if (muted) continue;
+      const due = toMs(it.due);
+      if (due && due < t) continue;
+      m[it.studentId] = (m[it.studentId] || 0) + 1;
+    }
+    return m;
+  }, [items, students]);
+
+  if (openStudent)
+    return (
+      <StudentDetail
+        s={openStudent}
+        items={items.filter((it) => it.studentId === openStudent.id)}
+        online={online}
+        worker={worker}
+        toast={toast}
+        onBack={() => setOpenId(null)}
+        onRelink={() => setRelink(openStudent)}
+      />
+    );
 
   return (
     <>
@@ -262,12 +315,169 @@ function StudentsTab({ students, worker, online }) {
       ) : (
         <div className="cards">
           {sorted.map((s) => (
-            <StudentCard key={s.id} s={s} online={online} toast={toast} onRelink={() => setRelink(s)} />
+            <StudentCard key={s.id} s={s} upcoming={counts[s.id] || 0} onOpen={() => setOpenId(s.id)} />
           ))}
         </div>
       )}
       {relink && <RelinkModal s={relink} worker={worker} onClose={() => setRelink(null)} />}
     </>
+  );
+}
+
+// بوكس الطالب — بالضغط عليه بتفتح صفحته
+function StudentCard({ s, upcoming, onOpen }) {
+  const [label, kind] = STATUS[s.status] || ["—", ""];
+  return (
+    <button type="button" className="card student-card" onClick={onOpen}>
+      <div className="card-head">
+        <div>
+          <div className="card-title">{s.name}</div>
+          <div className="card-meta">
+            <Tag kind={kind}>{label}</Tag>
+            {s.enabled === false && <Tag>موقوف</Tag>}
+            {s.studentNo && <span dir="ltr">{s.studentNo}</span>}
+            <span>{s.siteName || hostOf(s.site)}</span>
+          </div>
+        </div>
+        <span className="student-card-arrow" aria-hidden="true">‹</span>
+      </div>
+      <div className="small-text muted">
+        {s.lastSync ? `آخر مزامنة ${fmtAgo(s.lastSync)}` : "لسا ما انمزمن"}
+        {` · ${upcoming} مهمة قادمة`}
+      </div>
+      {s.statusMsg && <div className="small-text err">{s.statusMsg}</div>}
+    </button>
+  );
+}
+
+// صفحة الطالب: بياناته + تحديد المساقات + مهامه
+function StudentDetail({ s, items, online, worker, toast, onBack, onRelink }) {
+  const [label, kind] = STATUS[s.status] || ["—", ""];
+  const [busy, setBusy] = useState(false);
+  const [showMuted, setShowMuted] = useState(false);
+  const muted = new Set(s.mutedCourses || []);
+
+  // المواد المكتشفة من المهام (الاسم + عدد المهام)
+  const courses = useMemo(() => {
+    const m = new Map();
+    for (const it of items) {
+      const name = it.course || "بدون مادة";
+      const c = m.get(name) || { name, total: 0, open: 0 };
+      c.total++;
+      if (it.task && !it.done && !it.submitted && !it.gone) c.open++;
+      m.set(name, c);
+    }
+    return [...m.values()].sort((a, b) => b.open - a.open || a.name.localeCompare(b.name, "ar"));
+  }, [items]);
+
+  const rows = useMemo(() => {
+    const t = Date.now();
+    return items
+      .filter((it) => !muted.has(it.course || ""))
+      .map((it) => ({ ...it, dueMs: toMs(it.due) }))
+      .filter((it) => it.task && (showMuted || (!it.done && !it.submitted)) ) // المهام (مع خيار عرض المخلّص)
+      .filter((it) => !it.gone)
+      .sort((a, b) => {
+        const oa = a.done || a.submitted ? 1 : 0;
+        const ob = b.done || b.submitted ? 1 : 0;
+        return oa - ob || (a.dueMs || Infinity) - (b.dueMs || Infinity);
+      })
+      .slice(0, 300);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, s.mutedCourses, showMuted]);
+
+  async function toggleCourse(name) {
+    const next = muted.has(name) ? (s.mutedCourses || []).filter((c) => c !== name) : [...(s.mutedCourses || []), name];
+    try {
+      await updateDoc(doc(db, "moodle_students", s.id), { mutedCourses: next });
+    } catch (e) {
+      toast(e.message, "bad");
+    }
+  }
+  async function sync() {
+    setBusy(true);
+    try {
+      await runCommand("moodle", "moodle_sync", { studentId: s.id }, { timeout: 180_000 });
+      toast(`تمت مزامنة ${s.name} ✓`, "ok");
+    } catch (e) {
+      toast(e.message, "bad", 6000);
+    }
+    setBusy(false);
+  }
+  async function remove() {
+    if (!confirm(`حذف ${s.name} وكل مهامه؟ الربط رح ينمسح من الجوال كمان.`)) return;
+    try {
+      if (online) await runCommand("moodle", "moodle_delete", { studentId: s.id }, { timeout: 60_000 });
+      else await deleteDoc(doc(db, "moodle_students", s.id));
+      toast("انحذف", "ok");
+      onBack();
+    } catch (e) {
+      toast(e.message, "bad");
+    }
+  }
+
+  return (
+    <div>
+      <button className="btn small" onClick={onBack} style={{ marginBottom: 10 }}>
+        › رجوع لكل الطلاب
+      </button>
+
+      <Panel title={s.name}>
+        <div className="card-meta">
+          <Tag kind={kind}>{label}</Tag>
+          {s.enabled === false && <Tag>موقوف</Tag>}
+          {s.studentNo && <span dir="ltr">{s.studentNo}</span>}
+          <span>{s.siteName || hostOf(s.site)}</span>
+          <span>{s.mode === "ical" ? "تقويم" : s.mode === "web" ? "دخول مباشر" : "حساب"}</span>
+        </div>
+        <div className="small-text muted" style={{ marginTop: 6 }}>
+          {s.lastSync ? `آخر مزامنة ${fmtAgo(s.lastSync)}` : "لسا ما انمزمن"}
+          {` · ${courses.length} مادة`}
+        </div>
+        {s.statusMsg && <div className="small-text err">{s.statusMsg}</div>}
+        <div className="btn-row">
+          <button className="btn small" onClick={sync} disabled={busy || !online || s.status === "pending"}>
+            {busy ? "جاري..." : "مزامنة الآن"}
+          </button>
+          <button className="btn small" onClick={onRelink}>
+            إعادة ربط
+          </button>
+          <button className="btn small" onClick={() => updateDoc(doc(db, "moodle_students", s.id), { enabled: s.enabled === false })}>
+            {s.enabled === false ? "تشغيل" : "إيقاف"}
+          </button>
+          <button className="btn small danger-outline" onClick={remove}>
+            حذف
+          </button>
+        </div>
+      </Panel>
+
+      <Panel title="المساقات اللي بتتابعها" actions={<span className="small-text muted">شيل الصح عن المادة اللي ما بدك تتابعها</span>}>
+        {!courses.length ? (
+          <Empty>لسا ما ظهرت مواد — اعمل مزامنة</Empty>
+        ) : (
+          <div className="course-list">
+            {courses.map((c) => (
+              <label key={c.name} className={"course-row" + (muted.has(c.name) ? " off" : "")}>
+                <input type="checkbox" checked={!muted.has(c.name)} onChange={() => toggleCourse(c.name)} />
+                <span className="course-name">{c.name}</span>
+                <span className="small-text muted">{c.open} قادمة · {c.total} كل</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel
+        title="مهام الطالب"
+        actions={
+          <button className="btn small" onClick={() => setShowMuted((v) => !v)}>
+            {showMuted ? "أخفِ المخلّص" : "اعرض المخلّص"}
+          </button>
+        }
+      >
+        {!rows.length ? <Empty>ما في مهام هون</Empty> : <TaskTable rows={rows} onToggle={(it) => toggleItemDone(it, toast)} showStudent={false} />}
+      </Panel>
+    </div>
   );
 }
 
@@ -382,70 +592,6 @@ function AddStudent({ worker, online }) {
         </button>
       </form>
     </Panel>
-  );
-}
-
-function StudentCard({ s, online, toast, onRelink }) {
-  const [label, kind] = STATUS[s.status] || ["—", ""];
-  const [busy, setBusy] = useState(false);
-
-  async function sync() {
-    setBusy(true);
-    try {
-      await runCommand("moodle", "moodle_sync", { studentId: s.id }, { timeout: 180_000 });
-      toast(`تمت مزامنة ${s.name} ✓`, "ok");
-    } catch (e) {
-      toast(e.message, "bad", 6000);
-    }
-    setBusy(false);
-  }
-
-  async function remove() {
-    if (!confirm(`حذف ${s.name} وكل مهامه؟ الربط رح ينمسح من الجوال كمان.`)) return;
-    try {
-      if (online) await runCommand("moodle", "moodle_delete", { studentId: s.id }, { timeout: 60_000 });
-      else await deleteDoc(doc(db, "moodle_students", s.id)); // العامل بيمسح الباقي لما يرجع
-      toast("انحذف", "ok");
-    } catch (e) {
-      toast(e.message, "bad");
-    }
-  }
-
-  return (
-    <div className="card">
-      <div className="card-head">
-        <div>
-          <div className="card-title">{s.name}</div>
-          <div className="card-meta">
-            <Tag kind={kind}>{label}</Tag>
-            {s.enabled === false && <Tag>موقوف</Tag>}
-            {s.studentNo && <span dir="ltr">{s.studentNo}</span>}
-            <span>{s.siteName || hostOf(s.site)}</span>
-            <span>{s.mode === "ical" ? "تقويم" : s.mode === "web" ? "دخول مباشر" : "حساب"}</span>
-          </div>
-        </div>
-      </div>
-      <div className="small-text muted">
-        {s.lastSync ? `آخر مزامنة ${fmtAgo(s.lastSync)}` : "لسا ما انمزمن"}
-        {s.coursesCount != null ? ` · ${s.coursesCount} مادة` : ""}
-        {s.upcoming != null ? ` · ${s.upcoming} مهمة قادمة` : ""}
-      </div>
-      {s.statusMsg && <div className="small-text err">{s.statusMsg}</div>}
-      <div className="btn-row">
-        <button className="btn small" onClick={sync} disabled={busy || !online || s.status === "pending"}>
-          {busy ? "جاري..." : "مزامنة الآن"}
-        </button>
-        <button className="btn small" onClick={onRelink}>
-          إعادة ربط
-        </button>
-        <button className="btn small" onClick={() => updateDoc(doc(db, "moodle_students", s.id), { enabled: s.enabled === false })}>
-          {s.enabled === false ? "تشغيل" : "إيقاف"}
-        </button>
-        <button className="btn small danger-outline" onClick={remove}>
-          حذف
-        </button>
-      </div>
-    </div>
   );
 }
 
