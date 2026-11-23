@@ -14,8 +14,9 @@ import { loadOrCreateKeys, decryptBox } from './crypto.js'
 import { checkSite, getToken, fetchStudent, MoodleError, TASK_KINDS } from './moodle.js'
 import { fetchIcal, checkIcalUrl } from './ical.js'
 import { createNotifier, makeFormat, kindLabel } from './notify.js'
+import { transport } from './http.js'
 
-const VERSION = '1.0.0'
+const VERSION = '1.1.0'
 const DIR = dirname(fileURLToPath(import.meta.url))
 const DATA = join(DIR, 'data')
 
@@ -383,7 +384,7 @@ function loop(name, everyMs, fn) {
   tick()
 }
 
-log(`🎓 عامل المودل ${VERSION} — المزامنة كل ${CFG.syncMin} دقيقة، تيليجرام: ${tg.enabled ? 'شغال' : 'مش معبّى'}`)
+log(`🎓 عامل المودل ${VERSION} — المزامنة كل ${CFG.syncMin} دقيقة، تيليجرام: ${tg.enabled ? 'شغال' : 'مش معبّى'}، الطلبات عن طريق ${transport()}`)
 await heartbeat()
 loop('heartbeat', 60_000, () => heartbeat())
 loop('commands', 4_000, pollCommands)

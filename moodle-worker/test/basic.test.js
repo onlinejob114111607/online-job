@@ -38,10 +38,11 @@ function fakeMoodle() {
     const f = Object.fromEntries(new URLSearchParams(body))
     calls.push({ path: u.pathname, f })
     const send = (o) => (res.setHeader('Content-Type', 'application/json'), res.end(JSON.stringify(o)))
+    if (u.pathname.startsWith('/cf')) return (res.statusCode = 403), res.end('<!DOCTYPE html><html><head><title>Just a moment...</title></head></html>')
     if (u.pathname === '/lib/ajax/service-nologin.php') return send([{ error: false, data: { sitename: 'Fake U', typeoflogin: 1, wwwroot: `http://127.0.0.1:${srv.address().port}` } }])
     if (u.pathname === '/login/token.php') return f.password === 'good' ? send({ token: 'T1' }) : send({ error: 'Invalid login', errorcode: 'invalidlogin' })
     if (u.pathname === '/calendar/export_execute.php')
-      return res.end('BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:9@x\nSUMMARY:Lab is due\nDTSTART:20991124T215900Z\nEND:VEVENT\nEND:VCALENDAR\n')
+      return res.end('BEGIN:VCALENDAR\nBEGIN:VEVENT\nUID:9@x\nSUMMARY:Lab is due\nDTSTART:20991124T215900Z\nEND:VEVENT\nBEGIN:VEVENT\nUID:10@x\nSUMMARY:Assignment 2 مستحق\nDTSTART:20991125T215900Z\nEND:VEVENT\nEND:VCALENDAR\n')
     if (f.wstoken !== 'T1') return send({ exception: 'x', errorcode: 'invalidtoken', message: 'bad' })
     const fut = Math.floor(Date.now() / 1000) + 86400
     switch (f.wsfunction) {
@@ -96,7 +97,10 @@ test('moodle flow against fake server', async () => {
 
     const ic = await fetchIcal(base + '/calendar/export_execute.php?userid=7&authtoken=abc')
     assert.equal(ic.items[0].title, 'Lab')
+    assert.equal(ic.items[1].title, 'Assignment 2')
+    assert.equal(ic.items[1].kind, 'assign')
     assert.equal(ic.items[0].kind, 'assign')
+    await assert.rejects(fetchIcal(base + '/cf/export_execute.php?authtoken=x'), (e) => e.code === 'blocked')
   } finally {
     srv.close()
   }
