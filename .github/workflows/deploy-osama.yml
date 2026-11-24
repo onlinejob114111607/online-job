@@ -1,0 +1,51 @@
+# بناء موقع أسامة الشخصي (CV) ونشرها بمجلد osama/ (GitHub Pages: /online-job/osama/)
+name: Build & deploy Osama CV
+
+on:
+  push:
+    branches: [main]
+    paths: ["osama-cv/**", ".github/workflows/deploy-osama.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: osama-cv/package-lock.json
+
+      - name: Install & build
+        working-directory: osama-cv
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Replace published files
+        run: |
+          rm -rf osama
+          cp -r osama-cv/dist osama
+
+      - name: Commit build
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898699+github-actions[bot]@users.noreply.github.com"
+          git add -A osama
+          if git diff --cached --quiet; then
+            echo "ما في تغيير"
+          else
+            git commit -m "Deploy Osama CV from ${GITHUB_SHA::7}"
+            git pull --rebase origin main
+            git push
+          fi
