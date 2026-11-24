@@ -408,3 +408,4 @@ html[lang="ar"] .m-body h3 { font-weight: 800; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; transition-delay: 0s !important; }
   .rv, .hero .rv.in { opacity: 1 !important; transform: none !important; filter: none !important; }
 }
+.c-grid .c-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
