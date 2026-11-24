@@ -14,6 +14,7 @@ import TgSection from "./tg/TgSection";
 import SettingsPage from "./SettingsPage";
 import Logs from "./Logs";
 import Health from "./Health";
+import Students from "./students/Students";
 import Icon from "../components/Icons";
 import "../admin.css";
 import "../admin-theme.css";
@@ -103,6 +104,7 @@ const NAV_GROUPS = [
     ],
   },
   { title: "المتجر", items: [["store", "المتجر", "bag"]] },
+  { title: "الطلاب", items: [["students", "متابعة المودل", "cap"]] },
   {
     title: "النظام",
     items: [
@@ -189,6 +191,7 @@ function Shell({ user }) {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="logs" element={<Logs />} />
             <Route path="health" element={<Health />} />
+            <Route path="students" element={<Students />} />
             <Route path="*" element={<Navigate to="/admin" replace />} />
           </Routes>
         </main>
