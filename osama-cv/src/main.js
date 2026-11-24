@@ -15,8 +15,13 @@ import { icon } from "./icons.js";
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
 const app = document.getElementById("app");
-const printEl = document.getElementById("print-cv");
-const IMG = { job: "./p-job.webp", joudi: "./p-joudi.webp" };
+const IMG = {
+  job: ["./p-job.webp", "./work/job-2.webp"],
+  dash: ["./work/dash-1.webp", "./work/dash-2.webp"],
+  store: ["./work/store-1.webp", "./work/store-2.webp", "./work/store-3.webp"],
+  joudi: ["./p-joudi.webp"],
+  bot: ["./work/bot-1.webp", "./work/bot-2.webp"],
+};
 const YEAR = new Date().getFullYear();
 
 // شعار OB
@@ -41,7 +46,7 @@ const socialLinks = () => {
 };
 
 function projectArt(key) {
-  if (IMG[key]) return `<img src="${IMG[key]}" alt="" loading="lazy" />`;
+  if (IMG[key]) return `<img src="${IMG[key][0]}" alt="" loading="lazy" />`;
   if (key === "dash")
     return `<div class="art art-dash"><div class="a-side"><i></i><i></i><i></i><i></i><i></i></div><div class="a-main"><div class="a-row"><b></b><b></b><b></b></div><svg viewBox="0 0 200 70" preserveAspectRatio="none"><path d="M0 60 L30 48 L60 52 L90 30 L120 36 L150 16 L200 22" fill="none" stroke="currentColor" stroke-width="2"/><path d="M0 60 L30 48 L60 52 L90 30 L120 36 L150 16 L200 22 L200 70 L0 70Z" fill="currentColor" opacity=".08"/></svg><div class="a-table"><i></i><i></i><i></i></div></div></div>`;
   if (key === "store")
@@ -50,27 +55,6 @@ function projectArt(key) {
 }
 
 const SKILL_MARK = { html: "H5", css: "C3", js: "JS", react: "Re", vite: "Vi", tw: "Tw", three: "3D", gsap: "GS", fire: "Fb", supa: "Sb", node: "No", gh: "GA", term: "Tx", net: "Nw" };
-
-function cert(t, i, [field, proof]) {
-  return `
-  <div class="cert" data-cert="${i}">
-    <div class="cert-in">
-      <div class="cert-top">${LOGO}<span>No. OB-${String(i + 1).padStart(3, "0")}</span></div>
-      <h4>${t.certs.head}</h4>
-      <p class="cert-sub">${t.certs.sub}</p>
-      <p class="cert-small">${t.certs.awarded}</p>
-      <p class="cert-name">${t.hero.name}</p>
-      <p class="cert-small">${t.certs.field}</p>
-      <p class="cert-field">${field}</p>
-      <p class="cert-proof"><span>${t.certs.proven}:</span> ${proof}</p>
-      <div class="cert-foot">
-        <div><b class="sig">O. Bawadi</b><span>${t.certs.sign}</span></div>
-        <div class="seal">${LOGO}</div>
-        <div><b>${YEAR}</b><span>${t.certs.date}</span></div>
-      </div>
-    </div>
-  </div>`;
-}
 
 function render() {
   const t = T[lang];
@@ -111,7 +95,7 @@ function render() {
         <div class="socs rv" style="--d:.4s">${socials}<a class="soc" href="mailto:${CONFIG.email}" aria-label="email">${icon("mail")}</a></div>
         <div class="ctas rv" style="--d:.48s">
           <a class="btn solid" href="#contact">${t.hero.hire}</a>
-          <button class="btn line" id="cv">${icon("download")} ${t.hero.cv}</button>
+          <a class="btn line" href="#projects">${t.projects.title}</a>
         </div>
       </div>
       <div class="photo-wrap rv" style="--d:.2s">
@@ -203,8 +187,16 @@ function render() {
       <p class="kicker rv">${t.certs.kicker}</p>
       <h2 class="title rv">${t.certs.title}</h2>
       <p class="sub rv">${t.certs.note}</p>
-      <div class="cert-grid">
-        ${t.certs.items.map((c, i) => `<button class="cert-btn rv" style="--d:${i * 0.08}s" data-open-cert="${i}">${cert(t, i, c)}</button>`).join("")}
+      <div class="course-grid">
+        ${t.certs.items.map(([ic, name, org], i) => `
+          <div class="card course rv" style="--d:${(i % 4) * 0.07}s">
+            <div class="emblem">${icon(ic)}</div>
+            <div class="course-b">
+              <span class="org">${org}</span>
+              <h3>${name}</h3>
+              <span class="status"><i></i>${t.certs.status}</span>
+            </div>
+          </div>`).join("")}
       </div>
     </section>
 
@@ -248,20 +240,7 @@ function render() {
   <dialog class="modal" id="modal"><div class="modal-in" id="modal-in"></div></dialog>
   `;
 
-  renderPrint(t);
   wire(t);
-}
-
-function renderPrint(t) {
-  printEl.innerHTML = `
-    <div class="p-head"><img src="./osama.webp" alt="" />
-      <div><h1>${lang === "en" ? "Eng. Osama Moen Bawadi" : "م. أسامة معين بوادي"}</h1><p class="p-role">${t.hero.roles[0]}</p>
-      <p class="p-contact">${CONFIG.email}${CONFIG.whatsapp ? " · +" + CONFIG.whatsapp : ""}</p></div></div>
-    <h2>${t.about.title}</h2>${t.about.p.map((p) => `<p>${p}</p>`).join("")}
-    <h2>${t.edu.title}</h2><p><b>${t.edu.degree}</b>: ${t.edu.uni}</p>
-    <h2>${t.services.title}</h2><ul>${t.services.items.map(([, a, b]) => `<li><b>${a}:</b> ${b}</li>`).join("")}</ul>
-    <h2>${t.skills.title}</h2><p>${SKILLS.map((s) => s[1]).join(" · ")}</p>
-    <h2>${t.projects.title}</h2><ul>${t.projects.items.map((p) => `<li><b>${p.title}:</b> ${p.short}${CONFIG.links[p.key] ? `<br><span class="p-link">${CONFIG.links[p.key]}</span>` : ""}</li>`).join("")}</ul>`;
 }
 
 let io, lenis, typedTimer, statementEls = null;
@@ -313,7 +292,6 @@ function wire(t) {
     })
   );
 
-  document.getElementById("cv").onclick = () => window.print();
 
   // النص المتبدّل
   clearTimeout(typedTimer);
@@ -350,7 +328,7 @@ function wire(t) {
     const open = (e) => {
       if (e.target.closest("a")) return;
       openModal(`
-        <div class="m-shot">${projectArt(p.key)}</div>
+        <div class="m-shot">${IMG[p.key] ? `<div class="gal" data-i="0">${IMG[p.key].map((src, j) => `<img src="${src}" alt="" class="${j ? "" : "on"}" />`).join("")}</div>${IMG[p.key].length > 1 ? `<button class="g-nav g-prev" aria-label="prev">${icon("left")}</button><button class="g-nav g-next" aria-label="next">${icon("right")}</button><div class="g-dots">${IMG[p.key].map((_, j) => `<i class="${j ? "" : "on"}"></i>`).join("")}</div>` : ""}` : projectArt(p.key)}</div>
         <div class="m-body">
           <h3>${p.title}</h3><p>${p.long}</p>
           <h4>${t.projects.features}</h4>
@@ -358,12 +336,19 @@ function wire(t) {
           <div class="tags">${p.tags.map((s) => `<span>${s}</span>`).join("")}</div>
           ${CONFIG.links[p.key] ? `<a class="btn solid sm" href="${CONFIG.links[p.key]}" target="_blank" rel="noopener">${t.projects.visit} ${icon("ext", "ic sm")}</a>` : ""}
         </div>`, "m-proj");
+      const imgs = [...mIn.querySelectorAll(".gal img")], dots = [...mIn.querySelectorAll(".g-dots i")];
+      let k = 0;
+      const go = (n) => {
+        k = (n + imgs.length) % imgs.length;
+        imgs.forEach((im, j) => im.classList.toggle("on", j === k));
+        dots.forEach((d, j) => d.classList.toggle("on", j === k));
+      };
+      mIn.querySelector(".g-prev")?.addEventListener("click", () => go(k + (lang === "ar" ? 1 : -1)));
+      mIn.querySelector(".g-next")?.addEventListener("click", () => go(k + (lang === "ar" ? -1 : 1)));
+      dots.forEach((d, j) => d.addEventListener("click", () => go(j)));
     };
     card.addEventListener("click", open);
     card.addEventListener("keydown", (e) => e.key === "Enter" && open(e));
-  });
-  document.querySelectorAll("[data-open-cert]").forEach((b) => {
-    b.onclick = () => openModal(cert(t, +b.dataset.openCert, t.certs.items[+b.dataset.openCert]), "m-cert");
   });
 
   // ميلان الصورة والبطاقات
