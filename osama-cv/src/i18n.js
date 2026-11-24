@@ -28,7 +28,7 @@ export const T = {
         "I'm a full-stack web developer with an engineering background in Network & Mobile Technology from Al-Aqsa University, Gaza. That foundation in networks and systems shapes how I build: everything I ship is designed to be reliable, connected and ready for real traffic.",
         "I own the entire journey, from the first sketch to the live product: UI design, front-end, databases, integrations, automation and deployment. My largest system today is a complete business platform of more than 16,000 lines of code: a sign-up funnel, a 30+ screen admin dashboard, an online store and WhatsApp & Telegram automation, all built and maintained by me.",
       ],
-      stats: [["16K+", "Lines of Code", "In a single live platform"], ["30+", "Dashboard Screens", "Built and maintained"], ["5", "Live Products", "Published and running"], ["24/7", "Automation", "Self-running systems"]],
+      stats: [["1,750+", "Registrations", "Through my job platform"], ["16K+", "Lines of Code", "In a single live platform"], ["30+", "Dashboard Screens", "Built and maintained"], ["5", "Live Products", "Published and running"]],
     },
     process: {
       kicker: "How I Work",
@@ -63,9 +63,9 @@ export const T = {
         {
           key: "job",
           title: "Online Job Platform",
-          short: "A complete recruitment funnel for remote job opportunities, from landing page to sign-up to follow-up.",
+          short: "A complete recruitment funnel for remote jobs: 1,750+ registrations and 630+ people joined the team.",
           long: "A full recruitment platform for remote job opportunities. Visitors land on a persuasive Arabic page, read the FAQ and register through a validated form. Every registration flows instantly into the admin dashboard, where the team follows up through a structured sales funnel.",
-          features: ["Persuasive, responsive Arabic landing page", "Validated sign-up form with instant storage", "Sales funnel: conversations, goals and ready replies", "Visitor tracking and traffic-source analysis"],
+          features: ["1,750+ registrations so far", "1,000+ candidates contacted", "630+ joined the team", "Two-step sign-up form with instant storage", "Sales funnel: conversations, goals and ready replies", "Visitor tracking and traffic-source analysis"],
           tags: ["React", "Vite", "Firebase", "Supabase"],
         },
         {
@@ -171,7 +171,7 @@ export const T = {
         "أنا مطوّر ويب متكامل، أحمل خلفية هندسية في تكنولوجيا الشبكات والهواتف المحمولة من جامعة الأقصى في غزة. وقد صاغ هذا الأساس في الشبكات والأنظمة طريقتي في البناء: فكل ما أطلقه مصمَّم ليكون موثوقاً ومترابطاً وجاهزاً لاستقبال زوّار حقيقيين.",
         "أتولّى الرحلة كاملة من الفكرة الأولى حتى المنتج المنشور: تصميم الواجهات، والبرمجة الأمامية، وقواعد البيانات، والتكاملات، والأتمتة، والنشر. وأكبر أنظمتي اليوم منصّة أعمال متكاملة تتجاوز 16 ألف سطر برمجي، تضمّ مسار تسجيل، ولوحة تحكم بأكثر من 30 شاشة، ومتجراً إلكترونياً، وأتمتة لواتساب وتيليجرام، وقد بنيتُها وأتولّى صيانتها بنفسي.",
       ],
-      stats: [["+16K", "سطر برمجي", "في منصّة واحدة منشورة"], ["+30", "شاشة تحكم", "بنيتُها وأتولّى صيانتها"], ["5", "منتجات منشورة", "تعمل على الإنترنت"], ["24/7", "أتمتة", "أنظمة تعمل ذاتياً"]],
+      stats: [["+1750", "تسجيلاً", "عبر منصّة التوظيف"], ["+16K", "سطر برمجي", "في منصّة واحدة منشورة"], ["+30", "شاشة تحكم", "بنيتُها وأتولّى صيانتها"], ["5", "منتجات منشورة", "تعمل على الإنترنت"]],
     },
     process: {
       kicker: "أسلوب عملي",
@@ -206,9 +206,9 @@ export const T = {
         {
           key: "job",
           title: "منصّة فرص العمل عن بُعد",
-          short: "مسار توظيف متكامل لفرص العمل عن بُعد، من صفحة الهبوط إلى التسجيل إلى المتابعة.",
+          short: "مسار توظيف متكامل لفرص العمل عن بُعد: أكثر من 1750 تسجيلاً، وانضمام أكثر من 630 شخصاً إلى الفريق.",
           long: "منصّة توظيف متكاملة لفرص العمل عن بُعد؛ يصل الزائر إلى صفحة عربية مقنعة، ويطّلع على الأسئلة الشائعة، ثم يسجّل عبر نموذج يتحقّق من البيانات. وينتقل كل تسجيل فوراً إلى لوحة التحكم، حيث يتابعه الفريق عبر مسار مبيعات منظّم.",
-          features: ["صفحة هبوط عربية مقنعة ومتجاوبة", "نموذج تسجيل مع التحقق والحفظ الفوري", "مسار مبيعات: محادثات وأهداف وردود جاهزة", "تتبّع الزوّار وتحليل مصادر الزيارات"],
+          features: ["أكثر من 1750 تسجيلاً حتى الآن", "التواصل مع أكثر من 1000 مرشّح", "انضمام أكثر من 630 شخصاً إلى الفريق", "نموذج تسجيل من خطوتين مع الحفظ الفوري", "مسار مبيعات: محادثات وأهداف وردود جاهزة", "تتبّع الزوّار وتحليل مصادر الزيارات"],
           tags: ["React", "Vite", "Firebase", "Supabase"],
         },
         {

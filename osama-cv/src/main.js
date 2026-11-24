@@ -16,7 +16,7 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
 const app = document.getElementById("app");
 const IMG = {
-  job: ["./p-job.webp", "./work/job-2.webp"],
+  job: ["./p-job.webp", "./work/job-3.webp", "./work/job-2.webp"],
   dash: ["./work/dash-1.webp", "./work/dash-2.webp"],
   store: ["./work/store-1.webp", "./work/store-2.webp", "./work/store-3.webp"],
   joudi: ["./p-joudi.webp"],
