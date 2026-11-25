@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, Timestamp, updateDoc, where, writeBatch } from "firebase/firestore";
 import * as XLSX from "xlsx";
 import { db } from "../firebase";
@@ -342,6 +343,9 @@ export default function Registrations() {
               <button className="btn small wa-solid" disabled={!selected.size} onClick={() => setWelcomeFor(selRows)}>
                 <WaIcon size={15} /> إرسال ترحيب ({selected.size})
               </button>
+              <Link className="btn small" to="/admin/welcome-queue" title="متابعة الترحيبات اللي بالطابور">
+                ⏳ طابور الترحيب
+              </Link>
             </div>
           </div>
 
@@ -521,7 +525,7 @@ function WelcomeModal({ rows, site, onClose, onDone }) {
         });
         await b.commit();
       }
-      toast(`دخل ${targets.length} ترحيب الطابور — بينبعتوا وحدة وحدة بفاصل نص دقيقة تقريباً`, "ok", 4500);
+      toast(`دخل ${targets.length} ترحيب الطابور — تابعهم من «⏳ طابور الترحيب»`, "ok", 5000);
       onDone();
     } catch (e) {
       console.error(e);
