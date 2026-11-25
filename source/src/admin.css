@@ -998,3 +998,6 @@ a.btn {
 .wq-side { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .wa-btn.small { padding: 2px 8px; font-size: .82rem; }
 @media (max-width: 640px) { .wq-row { flex-direction: column; } .wq-side { align-self: flex-end; } }
+.wq-gap { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.wq-gap label { display: grid; gap: 4px; font-size: .85rem; }
+.wq-gap input { width: 120px; }
