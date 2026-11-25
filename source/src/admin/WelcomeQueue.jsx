@@ -20,12 +20,17 @@ const RANGES = [
   [7, "آخر 7 أيام"],
   [30, "آخر 30 يوم"],
 ];
-const AVG_GAP = 35; // ثانية تقريباً بين كل ترحيب والتاني (20–45)
 const LIVE = ["queued", "sending"];
+const fmtSec = (n) => (n >= 60 ? `${Math.round((n / 60) * 10) / 10} دقيقة` : `${n} ثانية`);
 const clock = (ms) => (ms ? new Date(ms).toLocaleString("ar-EG", { hour: "numeric", minute: "2-digit", day: "numeric", month: "numeric" }) : "");
 
 export default function WelcomeQueue() {
-  const { waAccounts, workers, toast } = useAdmin();
+  const { app, waAccounts, workers, toast } = useAdmin();
+  // الفاصل بين ترحيب والتاني (بالثواني) — من الإعدادات
+  const gapMin = Number(app.wa.dmGapMin) || 20;
+  const gapMax = Math.max(gapMin, Number(app.wa.dmGapMax) || 45);
+  const AVG_GAP = (gapMin + gapMax) / 2;
+  const [gap, setGap] = useState(null); // {min, max} وإنت بتعدّل
   const [days, setDays] = useState(1);
   const [accF, setAccF] = useState("");
   const [stF, setStF] = useState("");
@@ -115,6 +120,23 @@ export default function WelcomeQueue() {
     }
   }
 
+  async function saveGap(v = gap) {
+    const a = Math.round(Number(v.min));
+    const b = Math.round(Number(v.max));
+    if (!(a >= 5) || !(b >= a) || b > 3600) return toast("الأقل لازم يكون 5 ثواني أو أكتر، والأكتر أكبر منه (لحد ساعة)", "bad");
+    setBusy(true);
+    try {
+      await updateDoc(doc(db, "settings", "app"), { "wa.dmGapMin": a, "wa.dmGapMax": b });
+      setGap(null);
+      toast("انحفظ ✓ — بيمشي من الترحيب الجاي", "ok");
+    } catch (e) {
+      console.error(e);
+      toast("صار خطأ بالحفظ", "bad");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const queuedShown = shown.filter((r) => r.status === "queued");
   const failedShown = shown.filter((r) => r.status === "failed");
 
@@ -165,6 +187,45 @@ export default function WelcomeQueue() {
                 );
               })}
             {!accsInQueue.length && !pausedAny && <p className="small-text muted">الطابور فاضي هلأ. الترحيبات بتدخله من صفحة التسجيلات ← حدّد الأرقام ← إرسال ترحيب.</p>}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="⏱ الفاصل بين ترحيب والتاني">
+        <p className="small-text muted">
+          حالياً: بين <b>{fmtSec(gapMin)}</b> و <b>{fmtSec(gapMax)}</b> (عشوائي بينهم عشان يبيّن طبيعي). كل ما كبّرت الفاصل، قلّ خطر الحظر، بس الطابور بيطوّل.
+        </p>
+        {gap ? (
+          <div className="wq-gap">
+            <label>
+              أقل إشي (ثواني)
+              <input type="number" min={5} max={3600} value={gap.min} onChange={(e) => setGap({ ...gap, min: e.target.value })} />
+            </label>
+            <label>
+              أكتر إشي (ثواني)
+              <input type="number" min={5} max={3600} value={gap.max} onChange={(e) => setGap({ ...gap, max: e.target.value })} />
+            </label>
+            <button className="btn primary small" disabled={busy} onClick={saveGap}>
+              حفظ
+            </button>
+            <button className="btn small" onClick={() => setGap(null)}>
+              إلغاء
+            </button>
+          </div>
+        ) : (
+          <div className="btn-row">
+            <button className="btn small" onClick={() => setGap({ min: gapMin, max: gapMax })}>
+              ✏️ غيّر الفاصل
+            </button>
+            {[
+              [20, 45, "عادي"],
+              [60, 120, "هادي (دقيقة–دقيقتين)"],
+              [180, 300, "آمن جداً (3–5 د)"],
+            ].map(([a, b, l]) => (
+              <button key={l} className={"btn small" + (gapMin === a && gapMax === b ? " primary" : "")} disabled={busy} onClick={() => saveGap({ min: a, max: b })}>
+                {l}
+              </button>
+            ))}
           </div>
         )}
       </Panel>
