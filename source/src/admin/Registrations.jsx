@@ -50,6 +50,7 @@ const WELCOME = {
   queued: ["ترحيب بالطابور", "wait"],
   sent: ["تم الترحيب", "ok"],
   failed: ["فشل الترحيب", "bad"],
+  cancelled: ["الترحيب انلغى", ""],
 };
 
 export default function Registrations() {
