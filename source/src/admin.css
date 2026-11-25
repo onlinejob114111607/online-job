@@ -984,3 +984,17 @@ a.btn {
 .auto-head .toggle { flex-shrink: 0; }
 .auto-edit { display: grid; gap: 10px; padding-top: 10px; border-top: 1px dashed var(--line, rgba(255,255,255,.12)); }
 .auto-item > .btn.small { justify-self: start; }
+
+/* ===== طابور الترحيب ===== */
+.wq-accs { display: grid; gap: 8px; }
+.wq-acc { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid var(--line, rgba(255,255,255,.1)); border-radius: 12px; }
+.wq-acc .tag { margin-inline-start: 6px; }
+.wq-list { display: grid; gap: 8px; margin-top: 10px; }
+.wq-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--line, rgba(255,255,255,.1)); border-radius: 12px; }
+.wq-row.st-sending { border-color: var(--gold, #f5b301); }
+.wq-row.st-failed { border-color: rgba(239, 68, 68, .45); }
+.wq-row.st-cancelled { opacity: .6; }
+.wq-main { display: grid; gap: 4px; min-width: 0; }
+.wq-side { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.wa-btn.small { padding: 2px 8px; font-size: .82rem; }
+@media (max-width: 640px) { .wq-row { flex-direction: column; } .wq-side { align-self: flex-end; } }

@@ -14,6 +14,7 @@ import TgSection from "./tg/TgSection";
 import SettingsPage from "./SettingsPage";
 import Logs from "./Logs";
 import Health from "./Health";
+import WelcomeQueue from "./WelcomeQueue";
 import Students from "./students/Students";
 import Icon from "../components/Icons";
 import "../admin.css";
@@ -93,6 +94,7 @@ const NAV_GROUPS = [
     items: [
       ["", "الرئيسية", "grid"],
       ["registrations", "التسجيلات", "list"],
+      ["welcome-queue", "طابور الترحيب", "clock"],
       ["funnel", "المتابعة", "chat"],
     ],
   },
@@ -184,6 +186,7 @@ function Shell({ user }) {
           <Routes>
             <Route index element={<Overview />} />
             <Route path="registrations" element={<Registrations />} />
+            <Route path="welcome-queue" element={<WelcomeQueue />} />
             <Route path="funnel" element={<Funnel />} />
             <Route path="store" element={<StoreAdmin />} />
             <Route path="wa" element={<WaSection />} />
