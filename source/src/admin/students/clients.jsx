@@ -25,6 +25,13 @@ export const uniOf = (s, unis) => unis.find((u) => u.id === s.universityId) || n
 export const uniName = (s, unis) => uniOf(s, unis)?.name || s.university || "";
 export const portalOf = (s, unis) => s.portalUrl || uniOf(s, unis)?.portalUrl || "";
 export const moodleOf = (s, unis) => s.site || uniOf(s, unis)?.moodleUrl || "";
+const hostOnly = (u) => {
+  try {
+    return new URL(/^https?:/i.test(u) ? u : `https://${u}`).host;
+  } catch {
+    return String(u).slice(0, 40);
+  }
+};
 const fixUrl = (u) => (!u ? "" : /^https?:\/\//i.test(u) ? u : `https://${u}`);
 const today = () => new Date().toISOString().slice(0, 10);
 const phoneDigits = (p) => String(p || "").replace(/\D/g, "").replace(/^00/, "");
@@ -478,8 +485,8 @@ export function Universities({ unis, students }) {
           {unis.map((u) => (
             <div key={u.id} className="pay-row">
               <b>{u.name}</b>
-              <span className="muted small-text" dir="ltr">
-                {[u.portalUrl, u.moodleUrl].filter(Boolean).join("  ·  ") || "بدون روابط"}
+              <span className="muted small-text" dir="ltr" title={[u.portalUrl, u.moodleUrl].filter(Boolean).join("\n")}>
+                {[u.portalUrl, u.moodleUrl].filter(Boolean).map(hostOnly).join("  ·  ") || "بدون روابط"}
               </span>
               <span className="small-text muted">{students.filter((s) => s.universityId === u.id).length} طالب</span>
               <button className="btn small" onClick={() => setEdit({ ...empty, ...u })}>
