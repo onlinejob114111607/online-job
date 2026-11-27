@@ -388,10 +388,10 @@ export function ClientsSummary({ students }) {
   const owing = students.filter((s) => remainingOf(s) > 0);
   return (
     <div className="kpis">
-      <Kpi label="الطلاب" value={students.length} sub={`${students.filter((s) => (s.clientStatus || "active") === "active").length} نشط`} />
+      <Kpi label="الطلاب" value={students.length} sub={`منهم ${students.filter((s) => (s.clientStatus || "active") === "active").length} نشط`} />
       <Kpi label="الإجمالي" value={`${money(total)} ${CUR}`} />
       <Kpi label="المدفوع" value={`${money(paid)} ${CUR}`} color="var(--ok, #22c55e)" />
-      <Kpi label="المتبقي" value={`${money(Math.max(0, total - paid))} ${CUR}`} color="var(--bad, #ef4444)" sub={`${owing.length} طالب عليهم مبلغ`} />
+      <Kpi label="المتبقي" value={`${money(Math.max(0, total - paid))} ${CUR}`} color="var(--bad, #ef4444)" sub={owing.length ? `على ${owing.length} طالب` : "ما حدا عليه مبلغ"} />
     </div>
   );
 }
