@@ -106,7 +106,7 @@ const NAV_GROUPS = [
     ],
   },
   { title: "المتجر", items: [["store", "المتجر", "bag"]] },
-  { title: "الطلاب", items: [["students", "متابعة المودل", "cap"]] },
+  { title: "الطلاب", items: [["students", "متابعة الطلاب", "cap"]] },
   {
     title: "النظام",
     items: [

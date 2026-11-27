@@ -9,6 +9,11 @@ import { fmtAgo, toMs } from "../../utils";
 import { runCommand, store, useAdmin, useDocData, useQuery } from "../hooks";
 import { Empty, Field, Kpi, Modal, Panel, SubTabs, Tag } from "../ui";
 import { encryptForWorker } from "./crypto";
+import { useVault, seal, unseal } from "./vault";
+import {
+  CLIENT_STATUS, CUR, ClientFields, ClientsSummary, EMPTY_CLIENT, EditClient, Finance, PortalButtons, Universities, VaultBar,
+  clientFields, exportClients, money, remainingOf, sortByName, uniName, vaultPatch,
+} from "./clients";
 
 const KIND = {
   assign: ["واجب", "📝"],
@@ -41,6 +46,9 @@ const STATUS = {
   sso: ["بدها رابط التقويم", "wait"],
 };
 
+// حالة المودل (الطالب اللي انضاف بدون متابعة مودل ما إله ربط)
+const statusOf = (s) => (s.mode === "none" ? ["بدون متابعة مودل", ""] : STATUS[s.status] || ["—", ""]);
+
 const DAY = 86400_000;
 const dateFmt = new Intl.DateTimeFormat("ar", { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 const fmtDue = (ms) => (ms ? dateFmt.format(new Date(ms)) : "بدون موعد");
@@ -65,13 +73,15 @@ export default function Students() {
   const worker = useDocData("workers/moodle");
   const [students] = useQuery(() => collection(db, "moodle_students"), []);
   const [items, itemsLoading] = useQuery(() => collection(db, "moodle_items"), []);
+  const [unis] = useQuery(() => collection(db, "universities"), []);
+  const sortedUnis = [...unis].sort(sortByName);
   const [, tick] = useState(0);
   useEffect(() => {
     const t = setInterval(() => tick((x) => x + 1), 30_000);
     return () => clearInterval(t);
   }, []);
   const online = isWorkerOnline(worker);
-  const needLink = students.filter((s) => s.status === "relink" || s.status === "error" || s.status === "sso").length;
+  const needLink = students.filter((s) => s.mode !== "none" && (s.status === "relink" || s.status === "error" || s.status === "sso")).length;
 
   return (
     <div className="page">
@@ -83,14 +93,16 @@ export default function Students() {
       <SubTabs
         tabs={[
           ["tasks", "المهام"],
-          ["students", "الطلاب", needLink || null],
+          ["students", "الطلاب والحسابات", needLink || null],
+          ["universities", "الجامعات"],
           ["setup", "الإعداد"],
         ]}
         value={tab}
         onChange={setTab}
       />
       {tab === "tasks" && <Tasks items={items} loading={itemsLoading} students={students} />}
-      {tab === "students" && <StudentsTab students={students} items={items} worker={worker} online={online} />}
+      {tab === "students" && <StudentsTab students={students} items={items} worker={worker} online={online} unis={sortedUnis} />}
+      {tab === "universities" && <Universities unis={sortedUnis} students={students} />}
       {tab === "setup" && <Setup worker={worker} online={online} />}
     </div>
   );
@@ -272,11 +284,15 @@ function Tasks({ items, loading, students }) {
 // ============================================================
 //  الطلاب
 // ============================================================
-function StudentsTab({ students, items, worker, online }) {
+function StudentsTab({ students, items, worker, online, unis }) {
   const { toast } = useAdmin();
   const [relink, setRelink] = useState(null);
   const [openId, setOpenId] = useState(null);
-  const sorted = [...students].sort((a, b) => String(a.name).localeCompare(String(b.name), "ar"));
+  const [adding, setAdding] = useState(false);
+  const [q, setQ] = useState("");
+  const [uniF, setUniF] = useState("");
+  const [stF, setStF] = useState("");
+  const [owes, setOwes] = useState(false);
   const openStudent = students.find((s) => s.id === openId);
 
   // عدّ المهام القادمة لكل طالب (بدون المواد المكتومة) — من المهام الفعلية
@@ -294,6 +310,17 @@ function StudentsTab({ students, items, worker, online }) {
     return m;
   }, [items, students]);
 
+  const uniList = [...new Set(students.map((s) => uniName(s, unis)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ar"));
+  const shown = [...students]
+    .filter((s) => {
+      if (uniF && uniName(s, unis) !== uniF) return false;
+      if (stF && (s.clientStatus || "active") !== stF) return false;
+      if (owes && !(remainingOf(s) > 0)) return false;
+      const t = q.trim().toLowerCase();
+      return !t || [s.name, s.studentNo, s.phone, uniName(s, unis), s.college, s.major].some((v) => String(v || "").toLowerCase().includes(t));
+    })
+    .sort(sortByName);
+
   if (openStudent)
     return (
       <StudentDetail
@@ -301,6 +328,7 @@ function StudentsTab({ students, items, worker, online }) {
         items={items.filter((it) => it.studentId === openStudent.id)}
         online={online}
         worker={worker}
+        unis={unis}
         toast={toast}
         onBack={() => setOpenId(null)}
         onRelink={() => setRelink(openStudent)}
@@ -309,13 +337,43 @@ function StudentsTab({ students, items, worker, online }) {
 
   return (
     <>
-      <AddStudent worker={worker} online={online} />
-      {!sorted.length ? (
-        <Empty>ما في طلاب لسا</Empty>
+      <VaultBar />
+      <ClientsSummary students={students} />
+      <div className="toolbar">
+        <input className="search" placeholder="بحث بالاسم أو الرقم الجامعي أو التخصص..." value={q} onChange={(e) => setQ(e.target.value)} />
+        <select value={uniF} onChange={(e) => setUniF(e.target.value)}>
+          <option value="">كل الجامعات</option>
+          {uniList.map((u) => (
+            <option key={u}>{u}</option>
+          ))}
+        </select>
+        <select value={stF} onChange={(e) => setStF(e.target.value)}>
+          <option value="">كل الحالات</option>
+          {Object.entries(CLIENT_STATUS).map(([k, [l]]) => (
+            <option key={k} value={k}>
+              {l}
+            </option>
+          ))}
+        </select>
+        <label className="check-line">
+          <input type="checkbox" checked={owes} onChange={(e) => setOwes(e.target.checked)} /> عليه مبلغ
+        </label>
+        <div className="toolbar-actions">
+          <button className="btn small" onClick={() => exportClients(shown, unis)} disabled={!shown.length}>
+            ⬇ Excel
+          </button>
+          <button className="btn primary small" onClick={() => setAdding((v) => !v)}>
+            {adding ? "✕ سكّر" : "+ إضافة طالب / عميل"}
+          </button>
+        </div>
+      </div>
+      {adding && <AddStudent worker={worker} online={online} unis={unis} onDone={() => setAdding(false)} />}
+      {!shown.length ? (
+        <Empty>{students.length ? "ما في طلاب بهالفلتر" : "ما في طلاب لسا — اضغط «+ إضافة طالب / عميل»"}</Empty>
       ) : (
         <div className="cards">
-          {sorted.map((s) => (
-            <StudentCard key={s.id} s={s} upcoming={counts[s.id] || 0} onOpen={() => setOpenId(s.id)} />
+          {shown.map((s) => (
+            <StudentCard key={s.id} s={s} unis={unis} upcoming={counts[s.id] || 0} onOpen={() => setOpenId(s.id)} />
           ))}
         </div>
       )}
@@ -325,35 +383,40 @@ function StudentsTab({ students, items, worker, online }) {
 }
 
 // بوكس الطالب — بالضغط عليه بتفتح صفحته
-function StudentCard({ s, upcoming, onOpen }) {
-  const [label, kind] = STATUS[s.status] || ["—", ""];
+function StudentCard({ s, unis, upcoming, onOpen }) {
+  const [label, kind] = statusOf(s);
+  const rem = remainingOf(s);
+  const [cl, ck] = CLIENT_STATUS[s.clientStatus || "active"] || CLIENT_STATUS.active;
   return (
     <button type="button" className="card student-card" onClick={onOpen}>
       <div className="card-head">
         <div>
           <div className="card-title">{s.name}</div>
           <div className="card-meta">
+            <Tag kind={ck}>{cl}</Tag>
+            {Number(s.total) > 0 && <Tag kind={rem > 0 ? "bad" : "ok"}>{rem > 0 ? `باقي ${money(rem)} ${CUR}` : "خالص ✓"}</Tag>}
             <Tag kind={kind}>{label}</Tag>
-            {s.enabled === false && <Tag>موقوف</Tag>}
-            {s.studentNo && <span dir="ltr">{s.studentNo}</span>}
-            <span>{s.siteName || hostOf(s.site)}</span>
+            {s.enabled === false && <Tag>المتابعة موقوفة</Tag>}
           </div>
         </div>
         <span className="student-card-arrow" aria-hidden="true">‹</span>
       </div>
+      <div className="small-text muted">{[uniName(s, unis), s.college, s.major].filter(Boolean).join(" · ") || s.siteName || hostOf(s.site)}</div>
       <div className="small-text muted">
-        {s.lastSync ? `آخر مزامنة ${fmtAgo(s.lastSync)}` : "لسا ما انمزمن"}
-        {` · ${upcoming} مهمة قادمة`}
+        {s.studentNo && <span dir="ltr">{s.studentNo} · </span>}
+        {s.mode === "none" ? "بدون متابعة مودل" : `${s.lastSync ? `آخر مزامنة ${fmtAgo(s.lastSync)}` : "لسا ما انمزمن"} · ${upcoming} مهمة قادمة`}
       </div>
-      {s.statusMsg && <div className="small-text err">{s.statusMsg}</div>}
+      {s.statusMsg && s.mode !== "none" && <div className="small-text err">{s.statusMsg}</div>}
     </button>
   );
 }
 
 // صفحة الطالب: بياناته + تحديد المساقات + مهامه
-function StudentDetail({ s, items, online, worker, toast, onBack, onRelink }) {
-  const [label, kind] = STATUS[s.status] || ["—", ""];
+function StudentDetail({ s, items, online, worker, unis, toast, onBack, onRelink }) {
+  const [label, kind] = statusOf(s);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const selectedMode = s.coursesMode === "selected";
   const [showMuted, setShowMuted] = useState(false);
   const muted = new Set(s.mutedCourses || []);
 
@@ -394,6 +457,24 @@ function StudentDetail({ s, items, online, worker, toast, onBack, onRelink }) {
       toast(e.message, "bad");
     }
   }
+  // كل المواد ← ما في ولا مادة مكتومة · مواد محددة ← بنحفظ اللي اخترتهم، وأي مادة جديدة بتطلع بتنكتم لحالها
+  async function setCoursesMode(mode) {
+    const patch = mode === "all" ? { coursesMode: "all", mutedCourses: [], followedCourses: [] } : { coursesMode: "selected", followedCourses: courses.map((c) => c.name).filter((n) => !muted.has(n)) };
+    await updateDoc(doc(db, "moodle_students", s.id), patch).catch((e) => toast(e.message, "bad"));
+  }
+  useEffect(() => {
+    if (!selectedMode) return;
+    const followed = new Set(s.followedCourses || []);
+    const fresh = courses.map((c) => c.name).filter((n) => !followed.has(n) && !muted.has(n));
+    if (fresh.length) updateDoc(doc(db, "moodle_students", s.id), { mutedCourses: [...(s.mutedCourses || []), ...fresh] }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMode, courses.length]);
+  async function toggleFollow(name) {
+    const followed = new Set(s.followedCourses || courses.map((c) => c.name).filter((n) => !muted.has(n)));
+    followed.has(name) ? followed.delete(name) : followed.add(name);
+    const mutedNext = courses.map((c) => c.name).filter((n) => !followed.has(n));
+    await updateDoc(doc(db, "moodle_students", s.id), { followedCourses: [...followed], mutedCourses: mutedNext }).catch((e) => toast(e.message, "bad"));
+  }
   async function sync() {
     setBusy(true);
     try {
@@ -422,7 +503,49 @@ function StudentDetail({ s, items, online, worker, toast, onBack, onRelink }) {
         › رجوع لكل الطلاب
       </button>
 
-      <Panel title={s.name}>
+      <Panel
+        title={s.name}
+        actions={
+          <button className="btn small" onClick={() => setEditing(true)}>
+            ✏️ تعديل البيانات
+          </button>
+        }
+      >
+        <div className="card-meta">
+          <Tag kind={(CLIENT_STATUS[s.clientStatus || "active"] || CLIENT_STATUS.active)[1]}>{(CLIENT_STATUS[s.clientStatus || "active"] || CLIENT_STATUS.active)[0]}</Tag>
+          {s.semester && <span>{s.semester}</span>}
+          {s.phone && (
+            <a href={`https://wa.me/${s.phone}`} target="_blank" rel="noreferrer" dir="ltr">
+              +{s.phone}
+            </a>
+          )}
+        </div>
+        <div className="client-info">
+          <div>
+            <span className="muted">الجامعة</span>
+            <b>{uniName(s, unis) || "—"}</b>
+          </div>
+          <div>
+            <span className="muted">الكلية</span>
+            <b>{s.college || "—"}</b>
+          </div>
+          <div>
+            <span className="muted">التخصص</span>
+            <b>{s.major || "—"}</b>
+          </div>
+          <div>
+            <span className="muted">الرقم الجامعي</span>
+            <b dir="ltr">{s.studentNo || "—"}</b>
+          </div>
+        </div>
+        <VaultBar />
+        <PortalButtons s={s} unis={unis} />
+        {s.notes && <div className="note-preview">📝 {s.notes}</div>}
+      </Panel>
+
+      <Finance s={s} />
+
+      <Panel title="💻 متابعة المودل">
         <div className="card-meta">
           <Tag kind={kind}>{label}</Tag>
           {s.enabled === false && <Tag>موقوف</Tag>}
@@ -451,14 +574,31 @@ function StudentDetail({ s, items, online, worker, toast, onBack, onRelink }) {
         </div>
       </Panel>
 
-      <Panel title="المساقات اللي بتتابعها" actions={<span className="small-text muted">شيل الصح عن المادة اللي ما بدك تتابعها</span>}>
-        {!courses.length ? (
+      <Panel title="المواد اللي بتتابعها">
+        <div className="tabs" style={{ marginBottom: 10 }}>
+          <button className={"tab" + (!selectedMode ? " active" : "")} onClick={() => selectedMode && setCoursesMode("all")}>
+            كل المواد
+          </button>
+          <button className={"tab" + (selectedMode ? " active" : "")} onClick={() => !selectedMode && setCoursesMode("selected")}>
+            مواد محددة
+          </button>
+        </div>
+        <p className="small-text muted">
+          {selectedMode ? "علّم المواد اللي بدك تتابعها بس. أي مادة جديدة بتطلع ما بتتابعها إلا إذا علّمتها." : "بنتابع كل مواده، وأي مادة جديدة بتنضاف لحالها."}
+        </p>
+        {!selectedMode ? (
+          courses.length ? (
+            <div className="small-text">{courses.map((c) => c.name).join(" · ")}</div>
+          ) : (
+            <Empty>{s.mode === "none" ? "هالطالب بدون متابعة مودل" : "لسا ما ظهرت مواد — اعمل مزامنة"}</Empty>
+          )
+        ) : !courses.length ? (
           <Empty>لسا ما ظهرت مواد — اعمل مزامنة</Empty>
         ) : (
           <div className="course-list">
             {courses.map((c) => (
               <label key={c.name} className={"course-row" + (muted.has(c.name) ? " off" : "")}>
-                <input type="checkbox" checked={!muted.has(c.name)} onChange={() => toggleCourse(c.name)} />
+                <input type="checkbox" checked={!muted.has(c.name)} onChange={() => toggleFollow(c.name)} />
                 <span className="course-name">{c.name}</span>
                 <span className="small-text muted">{c.open} قادمة · {c.total} كل</span>
               </label>
@@ -477,6 +617,7 @@ function StudentDetail({ s, items, online, worker, toast, onBack, onRelink }) {
       >
         {!rows.length ? <Empty>ما في مهام هون</Empty> : <TaskTable rows={rows} onToggle={(it) => toggleItemDone(it, toast)} showStudent={false} />}
       </Panel>
+      {editing && <EditClient s={s} unis={unis} onClose={() => setEditing(false)} />}
     </div>
   );
 }
@@ -487,21 +628,24 @@ async function linkStudent(studentId, secret, worker) {
   return runCommand("moodle", "moodle_link", { studentId, box }, { timeout: 150_000 });
 }
 
-function AddStudent({ worker, online }) {
+function AddStudent({ worker, online, unis, onDone }) {
   const { toast } = useAdmin();
-  const empty = { name: "", studentNo: "", password: "", site: "", ical: "" };
-  const [f, setF] = useState(empty);
+  const vaultOpen = useVault();
+  const [f, setF] = useState({ ...EMPTY_CLIENT, site: "", ical: "" });
+  const [follow, setFollow] = useState(true); // متابعة المودل (ربط مع العامل)
   const [mode, setMode] = useState("password"); // password | ical
   const [site, setSite] = useState(null); // نتيجة فحص الموقع
   const [busy, setBusy] = useState("");
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const uni = unis.find((u) => u.id === f.universityId);
+  const moodleUrl = f.site.trim() || uni?.moodleUrl || "";
 
   async function check() {
-    if (!f.site.trim()) return toast("حط رابط المودل أول", "bad");
+    if (!moodleUrl) return toast("حط رابط المودل أول", "bad");
     if (!online) return toast("عامل المودل مطفي — شغّله على الجوال أول", "bad");
     setBusy("check");
     try {
-      const r = await runCommand("moodle", "moodle_check_site", { url: f.site.trim() }, { timeout: 60_000 });
+      const r = await runCommand("moodle", "moodle_check_site", { url: moodleUrl }, { timeout: 60_000 });
       setSite(r);
       if (r.loginType !== "app") setMode("ical");
     } catch (e) {
@@ -512,83 +656,89 @@ function AddStudent({ worker, online }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (!online) return toast("عامل المودل مطفي — شغّله على الجوال أول", "bad");
-    const secret = mode === "ical" ? { ical: f.ical.trim() } : { password: f.password };
-    if (mode === "ical" ? !secret.ical : !secret.password) return toast(mode === "ical" ? "حط رابط التقويم" : "حط كلمة السر", "bad");
+    if (f.password && !vaultOpen) return toast("افتح الخزنة بالرمز السري (فوق) عشان تنحفظ كلمة السر", "bad");
+    const link = follow && moodleUrl && (mode === "ical" ? f.ical.trim() : f.password);
+    if (follow && moodleUrl && !link) return toast(mode === "ical" ? "حط رابط التقويم، أو شيل صح «تابع مهامه على المودل»" : "حط كلمة السر، أو شيل صح «تابع مهامه على المودل»", "bad");
+    if (link && !online) return toast("عامل المودل مطفي — شغّله على الجوال، أو شيل صح «تابع مهامه على المودل» وضيفه بدون متابعة", "bad");
     setBusy("add");
     let ref;
     try {
       ref = await addDoc(collection(db, "moodle_students"), {
-        name: f.name.trim(),
-        studentNo: f.studentNo.trim(),
-        site: f.site.trim(),
-        mode,
+        ...clientFields(f),
+        ...(await vaultPatch(f, null)),
+        site: moodleUrl,
+        mode: link ? mode : "none",
+        coursesMode: "all",
+        payments: [],
         status: "pending",
         enabled: true,
         createdAt: serverTimestamp(),
       });
-      const r = await linkStudent(ref.id, secret, worker);
-      toast(`تم ربط ${f.name.trim()} ✓${r?.siteName ? ` — ${r.siteName}` : ""}`, "ok", 5000);
-      setF(empty);
+      if (link) {
+        try {
+          const r = await linkStudent(ref.id, mode === "ical" ? { ical: f.ical.trim() } : { password: f.password }, worker);
+          toast(`تمت إضافة ${f.name.trim()} وربطه ✓${r?.siteName ? ` — ${r.siteName}` : ""}`, "ok", 5000);
+        } catch (err) {
+          // الطالب بيضل محفوظ، بس الربط بدو إعادة
+          await updateDoc(ref, { status: "relink", statusMsg: err.message }).catch(() => {});
+          toast(`انضاف ${f.name.trim()}، بس ربط المودل ما زبط: ${err.message} — جرّب «إعادة ربط» من صفحته`, "bad", 8000);
+        }
+      } else toast(`تمت إضافة ${f.name.trim()} ✓`, "ok");
+      setF({ ...EMPTY_CLIENT, site: "", ical: "" });
       setSite(null);
+      onDone?.();
     } catch (err) {
       toast(err.message, "bad", 7000);
-      setF((x) => ({ ...x, password: "" }));
-      // الربط فشل ← بنشيل الطالب عشان ما يتكرر لما تحاول مرة ثانية (البيانات بتضل بالفورم)
-      if (ref) await deleteDoc(ref).catch(() => {});
     }
     setBusy("");
   }
 
   return (
-    <Panel title="إضافة طالب">
+    <Panel title="➕ إضافة طالب / عميل">
       <form onSubmit={submit}>
-        <div className="grid-2">
-          <Field label="اسم الطالب">
-            <input value={f.name} onChange={set("name")} required />
-          </Field>
-          <Field label="الرقم الجامعي (اسم المستخدم بالمودل)">
-            <input dir="ltr" value={f.studentNo} onChange={set("studentNo")} required={mode === "password"} autoComplete="off" />
-          </Field>
-        </div>
-        <Field label="رابط المودل" hint="أي رابط من موقع مودل الجامعة، مثلاً صفحة الدخول">
-          <div className="row-form">
-            <input dir="ltr" placeholder="https://moodle.university.edu/login/index.php" value={f.site} onChange={(e) => (set("site")(e), setSite(null))} required />
-            <button type="button" className="btn" onClick={check} disabled={!!busy}>
-              {busy === "check" ? "جاري الفحص..." : "افحص الموقع"}
-            </button>
-          </div>
-        </Field>
-        {site &&
-          (site.error ? (
-            <div className="alert danger">{site.error}</div>
-          ) : site.loginType === "app" ? (
-            <div className="alert info">✅ {site.siteName || "الموقع"} — بيزبط بالرقم الجامعي وكلمة السر.</div>
-          ) : (
-            <div className="alert warn">
-              ⚠️ {site.siteName || "الموقع"} — {site.loginType === "disabled" ? "الجامعة مسكّرة خدمة تطبيق الموبايل" : `الدخول عن طريق ${site.providers?.join(" / ") || "المتصفح (Microsoft/Google)"}`}، فكلمة السر ما بتزبط. استعمل رابط التقويم.
-            </div>
-          ))}
+        <ClientFields f={f} set={set} unis={unis} />
 
-        <div className="tabs" style={{ marginTop: 8 }}>
-          <button type="button" className={"tab" + (mode === "password" ? " active" : "")} onClick={() => setMode("password")}>
-            كلمة السر
-          </button>
-          <button type="button" className={"tab" + (mode === "ical" ? " active" : "")} onClick={() => setMode("ical")}>
-            رابط التقويم
-          </button>
-        </div>
-        {mode === "password" ? (
-          <Field label="كلمة سر المودل" hint="بتعطيك حالة التسليم والعلامات والملفات الجديدة كمان. بتتشفّر بالمتصفح. الجامعات اللي مسكّرة خدمة الموبايل (مثل الأقصى) بيدخلها العامل بالمتصفح، وبتنحفظ كلمة السر مشفّرة على الجوال بس عشان يعيد الدخول.">
-            <input type="password" dir="ltr" value={f.password} onChange={set("password")} autoComplete="new-password" />
-          </Field>
-        ) : (
-          <Field label="رابط تقويم المودل" hint="الطالب بيجيبه من: التقويم ← استيراد أو تصدير التقويمات ← تصدير التقويم ← (كل الأحداث، الأيام الأخيرة والقادمة) ← الحصول على رابط التقويم. بيعطي المواعيد بس.">
-            <input dir="ltr" placeholder="https://.../calendar/export_execute.php?userid=...&authtoken=..." value={f.ical} onChange={set("ical")} autoComplete="off" />
-          </Field>
+        <label className="check-line" style={{ margin: "8px 0" }}>
+          <input type="checkbox" checked={follow} onChange={(e) => setFollow(e.target.checked)} /> تابع مهامه على المودل (تنبيهات الواجبات والاختبارات)
+        </label>
+        {follow && (
+          <>
+            <Field label="رابط المودل" hint={uni?.moodleUrl ? `فاضي = رابط ${uni.name}` : "أي رابط من موقع مودل الجامعة، مثلاً صفحة الدخول"}>
+              <div className="row-form">
+                <input dir="ltr" placeholder={uni?.moodleUrl || "https://moodle.university.edu/login/index.php"} value={f.site} onChange={(e) => (set("site")(e), setSite(null))} />
+                <button type="button" className="btn" onClick={check} disabled={!!busy}>
+                  {busy === "check" ? "جاري الفحص..." : "افحص الموقع"}
+                </button>
+              </div>
+            </Field>
+            {site &&
+              (site.error ? (
+                <div className="alert danger">{site.error}</div>
+              ) : site.loginType === "app" ? (
+                <div className="alert info">✅ {site.siteName || "الموقع"} — بيزبط بالرقم الجامعي وكلمة السر.</div>
+              ) : (
+                <div className="alert warn">
+                  ⚠️ {site.siteName || "الموقع"} — {site.loginType === "disabled" ? "الجامعة مسكّرة خدمة تطبيق الموبايل" : `الدخول عن طريق ${site.providers?.join(" / ") || "المتصفح (Microsoft/Google)"}`}، فكلمة السر ما بتزبط. استعمل رابط التقويم.
+                </div>
+              ))}
+            <div className="tabs" style={{ marginTop: 8 }}>
+              <button type="button" className={"tab" + (mode === "password" ? " active" : "")} onClick={() => setMode("password")}>
+                بكلمة السر (فوق)
+              </button>
+              <button type="button" className={"tab" + (mode === "ical" ? " active" : "")} onClick={() => setMode("ical")}>
+                رابط التقويم
+              </button>
+            </div>
+            {mode === "ical" && (
+              <Field label="رابط تقويم المودل" hint="الطالب بيجيبه من: التقويم ← استيراد أو تصدير التقويمات ← تصدير التقويم ← (كل الأحداث، الأيام الأخيرة والقادمة) ← الحصول على رابط التقويم.">
+                <input dir="ltr" placeholder="https://.../calendar/export_execute.php?userid=...&authtoken=..." value={f.ical} onChange={set("ical")} autoComplete="off" />
+              </Field>
+            )}
+            {mode === "password" && <p className="small-text muted">كلمة السر اللي فوق بتنبعت مشفّرة لعامل المودل على الجوال عشان يتابع مهامه.</p>}
+          </>
         )}
-        <button className="btn primary" disabled={!!busy || !online}>
-          {busy === "add" ? "جاري الربط..." : "إضافة وربط"}
+        <button className="btn primary" disabled={!!busy}>
+          {busy === "add" ? "جاري..." : follow && moodleUrl ? "إضافة وربط" : "إضافة"}
         </button>
       </form>
     </Panel>
@@ -605,6 +755,7 @@ const hostOf = (u) => {
 
 function RelinkModal({ s, worker, onClose }) {
   const { toast } = useAdmin();
+  const vaultOpen = useVault();
   const [mode, setMode] = useState(s.mode === "ical" || s.status === "sso" ? "ical" : "password");
   const [val, setVal] = useState("");
   const [busy, setBusy] = useState(false);
@@ -615,6 +766,8 @@ function RelinkModal({ s, worker, onClose }) {
     try {
       await updateDoc(doc(db, "moodle_students", s.id), { status: "pending", statusMsg: null, mode });
       await linkStudent(s.id, mode === "ical" ? { ical: val.trim() } : { password: val }, worker);
+      // الخزنة مفتوحة ← كلمة السر الجديدة بتنحفظ كمان بملف الطالب
+      if (mode === "password" && vaultOpen) await updateDoc(doc(db, "moodle_students", s.id), await vaultPatch({ password: val, portalPassword: "" }, s.vault)).catch(() => {});
       toast(`تم ربط ${s.name} ✓`, "ok");
       onClose();
     } catch (e) {
@@ -626,7 +779,7 @@ function RelinkModal({ s, worker, onClose }) {
 
   return (
     <Modal
-      title={`إعادة ربط ${s.name}`}
+      title={`${s.mode === "none" ? "ربط المودل لـ" : "إعادة ربط"} ${s.name}`}
       onClose={onClose}
       actions={
         <>
