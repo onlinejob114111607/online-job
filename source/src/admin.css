@@ -1023,3 +1023,10 @@ a.btn {
 /* النصوص الطويلة (روابط) ما تمدّد الصفحة */
 .pay-row > *, .client-info b, .card-meta, .secret-row code, .student-card .small-text { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
 .pay-row > .muted { flex: 1 1 160px; }
+
+/* ما في شي يطلع برا الشاشة: التبويبات بتنسحب جوّاها، وأزرار الشريط بتنزل سطر */
+.page > *, .shell-main > * { min-width: 0; }
+.tabs { max-width: 100%; min-width: 0; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.toolbar-actions { flex-wrap: wrap; min-width: 0; }
+@media (max-width: 860px) { .toolbar-actions .btn { flex: 1 1 140px; } }

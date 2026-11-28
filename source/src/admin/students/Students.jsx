@@ -93,7 +93,7 @@ export default function Students() {
       <SubTabs
         tabs={[
           ["tasks", "المهام"],
-          ["students", "الطلاب والحسابات", needLink || null],
+          ["students", "الطلاب", needLink || null],
           ["universities", "الجامعات"],
           ["setup", "الإعداد"],
         ]}
