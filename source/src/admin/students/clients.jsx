@@ -510,6 +510,25 @@ export const lastPayMs = (s) => Math.max(0, ...(s.payments || []).map((p) => toM
 // ---------------- نسخ البيانات كرسالة ----------------
 export const SEP = "\n━━━━━━━━━━━━━━━\n";
 // نص فيه كل بيانات الطالب (كلمات السر بس إذا الخزنة مفتوحة)
+// نسخة مختصرة (زر «انسخ الكل»): الجامعة، التخصص، الاسم، الرقم الجامعي، كلمة السر، الملاحظات، المواد
+export async function studentShortText(s, unis, vaultOpen) {
+  let sec = null;
+  if (s.vault && vaultOpen) sec = await unseal(s.vault).catch(() => null);
+  const courses = s.coursesMode === "selected" ? (s.followedCourses || []).join("، ") || "مواد محددة (ما في مواد معلّمة)" : "كل المواد";
+  const pass = !s.vault ? "غير محفوظة" : sec ? sec.password || "—" : "🔒 (الخزنة مقفولة)";
+  return [
+    `🏛 الجامعة: ${uniName(s, unis) || "—"}`,
+    `📖 التخصص: ${s.major || "—"}`,
+    `👤 الاسم: ${s.name || "—"}`,
+    `🆔 الرقم الجامعي: ${s.studentNo || "—"}`,
+    `🔑 كلمة السر: ${pass}`,
+    s.notes && `📝 ملاحظات: ${s.notes}`,
+    `📚 المواد: ${courses}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 export async function studentText(s, unis, vaultOpen) {
   let sec = null;
   if (s.vault && vaultOpen) sec = await unseal(s.vault).catch(() => null);
@@ -569,7 +588,7 @@ export function CopyAllButton({ students, unis }) {
       onClick={async () => {
         setBusy(true);
         const parts = [];
-        for (const s of students) parts.push(await studentText(s, unis, open));
+        for (const s of students) parts.push(await studentShortText(s, unis, open));
         const ok = await copyText(parts.join(SEP));
         setBusy(false);
         if (ok) toast(`انسخت بيانات ${students.length} طالب ✓${open ? "" : " (بدون كلمات السر — الخزنة مقفولة)"}`, "ok", 4000);
