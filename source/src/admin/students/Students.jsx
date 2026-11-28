@@ -544,7 +544,7 @@ function StudentDetail({ s, items, online, worker, unis, toast, onBack, onRelink
         </div>
         <VaultBar />
         <PortalButtons s={s} unis={unis} />
-        {s.notes && <div className="note-preview">📝 {s.notes}</div>}
+        {s.notes && <div className="client-note">📝 {s.notes}</div>}
       </Panel>
 
       <Finance s={s} />
