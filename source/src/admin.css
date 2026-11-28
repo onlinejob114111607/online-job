@@ -1030,3 +1030,17 @@ a.btn {
 .tabs::-webkit-scrollbar { display: none; }
 .toolbar-actions { flex-wrap: wrap; min-width: 0; }
 @media (max-width: 860px) { .toolbar-actions .btn { flex: 1 1 140px; } }
+
+/* ===== كل الشاشات: ولا إشي بيمدّد الصفحة لبرا ===== */
+html, body { max-width: 100%; overflow-x: clip; }
+/* النصوص الطويلة بلا مسافات (روابط، رسائل أخطاء) بتنكسر على أكتر من سطر */
+.page, .panel, .card, .alert, .modal, .err, .small-text, .muted, .hint, p, li, td, th, label, .card-meta, .tag { overflow-wrap: anywhere; }
+.client-note { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .85rem; color: var(--muted); margin-top: 8px; }
+/* التبويبات: على الشاشات الصغيرة بتنزل لأكتر من سطر بدل ما يختفي بعضها */
+@media (max-width: 1100px) {
+  .tabs { flex-wrap: wrap; overflow-x: visible; row-gap: 2px; }
+  .tab { padding: 8px 12px; }
+}
+/* الجداول العريضة بتنسحب جوّا صندوقها */
+.table-wrap, .panel > table { max-width: 100%; overflow-x: auto; }
+img, video, iframe, svg { max-width: 100%; }
