@@ -12,7 +12,7 @@ import { encryptForWorker } from "./crypto";
 import { useVault, seal, unseal } from "./vault";
 import {
   CLIENT_STATUS, CUR, ClientFields, ClientsSummary, EMPTY_CLIENT, EditClient, Finance, PortalButtons, Universities, VaultBar,
-  clientFields, exportClients, money, remainingOf, sortByName, uniName, vaultPatch,
+  clientFields, exportClients, money, remainingOf, sortByName, uniName, vaultPatch, CopyAllButton, CopyStudentButton,
 } from "./clients";
 
 const KIND = {
@@ -362,6 +362,7 @@ function StudentsTab({ students, items, worker, online, unis }) {
           <button className="btn small" onClick={() => exportClients(shown, unis)} disabled={!shown.length}>
             ⬇ Excel
           </button>
+          <CopyAllButton students={shown} unis={unis} />
           <button className="btn primary small" onClick={() => setAdding((v) => !v)}>
             {adding ? "✕ سكّر" : "+ إضافة طالب / عميل"}
           </button>
@@ -506,9 +507,12 @@ function StudentDetail({ s, items, online, worker, unis, toast, onBack, onRelink
       <Panel
         title={s.name}
         actions={
-          <button className="btn small" onClick={() => setEditing(true)}>
-            ✏️ تعديل البيانات
-          </button>
+          <div className="row-gap">
+            <CopyStudentButton s={s} unis={unis} />
+            <button className="btn small" onClick={() => setEditing(true)}>
+              ✏️ تعديل البيانات
+            </button>
+          </div>
         }
       >
         <div className="card-meta">
