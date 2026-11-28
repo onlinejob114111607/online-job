@@ -505,3 +505,77 @@ export function Universities({ unis, students }) {
 
 export const sortByName = (a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ar");
 export const lastPayMs = (s) => Math.max(0, ...(s.payments || []).map((p) => toMs(p.at)));
+
+
+// ---------------- نسخ البيانات كرسالة ----------------
+export const SEP = "\n━━━━━━━━━━━━━━━\n";
+// نص فيه كل بيانات الطالب (كلمات السر بس إذا الخزنة مفتوحة)
+export async function studentText(s, unis, vaultOpen) {
+  let sec = null;
+  if (s.vault && vaultOpen) sec = await unseal(s.vault).catch(() => null);
+  const total = Number(s.total) || 0;
+  const paid = paidOf(s);
+  const portal = fixUrl(portalOf(s, unis));
+  const moodle = fixUrl(moodleOf(s, unis));
+  const courses = s.coursesMode === "selected" ? (s.followedCourses || []).join("، ") || "مواد محددة (ما في مواد معلّمة)" : "كل المواد";
+  const pass = !s.vault ? "غير محفوظة" : sec ? sec.password || "—" : "🔒 (الخزنة مقفولة)";
+  const lines = [
+    `👤 الاسم: ${s.name || "—"}`,
+    `🏛 الجامعة: ${uniName(s, unis) || "—"}`,
+    `🎓 الكلية: ${s.college || "—"}`,
+    `📖 التخصص: ${s.major || "—"}`,
+    s.semester && `📅 الفصل: ${s.semester}`,
+    `🆔 الرقم الجامعي: ${s.studentNo || "—"}`,
+    `🔑 كلمة السر: ${pass}`,
+    sec?.portalPassword && sec.portalPassword !== sec.password && `🔑 كلمة سر البوابة: ${sec.portalPassword}`,
+    s.phone && `📱 واتساب: +${s.phone}`,
+    `📌 الحالة: ${(CLIENT_STATUS[s.clientStatus || "active"] || CLIENT_STATUS.active)[0]}`,
+    `💰 الحساب الإجمالي: ${money(total)} ${CUR}`,
+    `✅ المدفوع: ${money(paid)} ${CUR}`,
+    `⏳ المتبقي: ${money(total - paid)} ${CUR}`,
+    `📚 المواد: ${courses}`,
+    portal && `🔗 بوابة الطلبة: ${portal}`,
+    moodle && `🔗 التعليم الإلكتروني: ${moodle}`,
+    s.notes && `📝 ملاحظات: ${s.notes}`,
+  ];
+  return lines.filter(Boolean).join("\n");
+}
+
+export function CopyStudentButton({ s, unis, className = "btn small" }) {
+  const { toast } = useAdmin();
+  const open = useVault();
+  return (
+    <button
+      className={className}
+      onClick={async () => {
+        const ok = await copyText(await studentText(s, unis, open));
+        if (ok) toast(open ? "انسخت كل بيانات الطالب ✓" : "انسخت البيانات ✓ (بدون كلمة السر — الخزنة مقفولة)", "ok", 4000);
+      }}
+    >
+      📋 انسخ بياناته
+    </button>
+  );
+}
+
+export function CopyAllButton({ students, unis }) {
+  const { toast } = useAdmin();
+  const open = useVault();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      className="btn small"
+      disabled={busy || !students.length}
+      title="بينسخ الطلاب اللي ظاهرين حسب البحث والفلاتر"
+      onClick={async () => {
+        setBusy(true);
+        const parts = [];
+        for (const s of students) parts.push(await studentText(s, unis, open));
+        const ok = await copyText(parts.join(SEP));
+        setBusy(false);
+        if (ok) toast(`انسخت بيانات ${students.length} طالب ✓${open ? "" : " (بدون كلمات السر — الخزنة مقفولة)"}`, "ok", 4000);
+      }}
+    >
+      {busy ? "جاري..." : `📋 انسخ الكل (${students.length})`}
+    </button>
+  );
+}
